@@ -141,6 +141,11 @@ export function createDeputyService({ db, auth, appId, classId, clock = Date.now
           projection.students.forEach(s => { if (permissions.attendanceView) s.attendance = state.attendanceRecords?.[today]?.[s.id] || null; });
         }
         return { className: String(state.admin?.className || 'Lớp 7N'),
+          classBranding: {
+            stationName: String(state.admin?.stationName || 'TRẠM CÔ TRẦN YẾN'),
+            slogan: String(state.admin?.slogan || 'Đoàn kết - Tự tin - Tỏa sáng'),
+            avatarUrl: String(state.admin?.classAvatarUrl || '')
+          },
           selectedRoleKey: policy?.key || '',
           availableRoles: roles.filter(usable).map(r => ({key:r.key,title:r.title,scope:(r.scope === 'group' || /^to-truong/.test(r.key || '')) ? 'group' : 'all',groupName:r.groupName || ''})),
           role: member.role, title: teacher ? 'Điểm thi đua' : groupId ? `Tổ của tôi • ${groupId}` : 'Ban cán sự • Toàn lớp', today, week: weekOf(today), permissions,

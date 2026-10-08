@@ -16,9 +16,26 @@ window.openDeputyWorkspace = async function() {
   if (!app || !window.cloudUser || !['to_pho','bcs'].includes(member?.role)) return;
 
   app.innerHTML = `
-    <main id="deputy-workspace" style="width:100%;height:100%;overflow-y:auto">
+    <main id="deputy-workspace">
+      <button id="bcs-sidebar-backdrop" class="bcs-sidebar-backdrop" type="button" aria-label="Đóng menu điều hướng" tabindex="-1" hidden></button>
+      <aside id="bcs-sidebar" class="bcs-sidebar" aria-label="Menu điều hướng Ban cán sự" tabindex="-1">
+        <div class="bcs-sidebar-heading">
+          <span><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10" fill="currentColor"/><path d="m16 7-3 6-6 4 4-7Z" fill="white"/></svg> Menu điều hướng</span>
+          <button id="bcs-menu-close" class="bcs-menu-button" type="button" aria-label="Đóng menu"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button>
+        </div>
+        <div class="bcs-class-card">
+          <div id="bcs-class-avatar" class="bcs-class-avatar"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="m12 2 3 7 7 3-7 3-3 7-3-7-7-3 7-3Z"/></svg></div>
+          <strong id="bcs-class-name">Lớp học</strong>
+          <b id="bcs-station-name">Ban cán sự lớp</b>
+          <small id="bcs-class-slogan">Đoàn kết - Tự tin - Tỏa sáng</small>
+        </div>
+        <div id="bcs-role-slot"></div>
+        <nav id="bcs-navigation" class="bcs-navigation" aria-label="Chức năng được cấp quyền"></nav>
+      </aside>
+      <div id="bcs-main" class="bcs-main">
       <header class="bcs-topbar print:hidden">
         <div class="bcs-brand">
+          <button id="bcs-menu-toggle" class="bcs-menu-button" type="button" aria-label="Mở menu điều hướng" aria-controls="bcs-sidebar" aria-expanded="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button>
           <h2 id="deputy-view-title" class="bcs-brand-title">Tích Điểm</h2>
         </div>
         <nav style="display:flex;align-items:center;gap:10px">
@@ -53,6 +70,7 @@ window.openDeputyWorkspace = async function() {
         <div id="recovery" hidden></div>
         <div id="content"></div>
       </div>
+      </div>
     </main>
   `;
 
@@ -70,7 +88,7 @@ window.openDeputyWorkspace = async function() {
     const theme = document.createElement('link');
     theme.id = 'deputy-dashboard-theme';
     theme.rel = 'stylesheet';
-    theme.href = '/deputy-dashboard.css?v=gvcn-match-v1';
+    theme.href = '/deputy-dashboard.css?v=bcs-sidebar-v3';
     document.head.appendChild(theme);
   }
   el('back')?.remove();
@@ -80,6 +98,54 @@ window.openDeputyWorkspace = async function() {
   let data, rows = [], working = false, dirty = false, recoveryActive = false, sessionBlocked = false, leaving = false, selectedRoleKey = '', selectedPanel = '', permissionRefreshQueued = false, permissionRefreshTimer = null;
   let currentActionType = 'add'; // 'add' hoặc 'subtract'
   let currentTargetType = 'student'; // 'student', 'group', 'class'
+
+  const desktopMenu = window.matchMedia?.('(min-width: 1024px)');
+  let sidebarOpen = false;
+  function setSidebar(open, restoreFocus = false) {
+    sidebarOpen = Boolean(open && !desktopMenu?.matches);
+    const sidebar = el('bcs-sidebar');
+    const visible = Boolean(desktopMenu?.matches || sidebarOpen);
+    root.classList.toggle('bcs-menu-open', sidebarOpen);
+    el('bcs-menu-toggle').setAttribute('aria-expanded', String(sidebarOpen));
+    el('bcs-sidebar-backdrop').hidden = !sidebarOpen;
+    sidebar.inert = !visible;
+    sidebar.setAttribute('aria-hidden', String(!visible));
+    el('bcs-main').inert = sidebarOpen;
+    if (sidebarOpen) {
+      sidebar.setAttribute('role', 'dialog');
+      sidebar.setAttribute('aria-modal', 'true');
+      el('bcs-menu-close').focus();
+    } else {
+      sidebar.removeAttribute('role');
+      sidebar.removeAttribute('aria-modal');
+      if (restoreFocus) {
+        if (desktopMenu?.matches) el('bcs-navigation').querySelector('[aria-pressed="true"]')?.focus();
+        else el('bcs-menu-toggle').focus();
+      }
+    }
+  }
+  el('bcs-menu-toggle').onclick = () => setSidebar(!sidebarOpen);
+  el('bcs-menu-close').onclick = () => setSidebar(false, true);
+  el('bcs-sidebar-backdrop').onclick = () => setSidebar(false, true);
+  root.addEventListener('keydown', event => {
+    if (!sidebarOpen) return;
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      setSidebar(false, true);
+    } else if (event.key === 'Tab') {
+      const items = [...el('bcs-sidebar').querySelectorAll('button:not([disabled]), select:not([disabled])')].filter(e => e.getClientRects().length);
+      const first = items[0], last = items[items.length - 1];
+      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
+      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
+    }
+  });
+  const syncSidebarViewport = () => {
+    const focusInside = el('bcs-sidebar').contains(document.activeElement);
+    setSidebar(false);
+    if (focusInside && !desktopMenu?.matches) el('bcs-menu-toggle').focus();
+  };
+  desktopMenu?.addEventListener('change', syncSidebarViewport);
+  setSidebar(false);
 
   const defaultPositiveCriteria = [
     { points: 2,  reason: "Giơ tay phát biểu", category: "Học tập" },
@@ -158,6 +224,9 @@ window.openDeputyWorkspace = async function() {
     const assignment = ['ASSIGNMENT_CHANGED','ROLE_UNAVAILABLE'].includes(code) || /Phân công tổ/i.test(error.message || '');
     if ([401,403].includes(error.status)) {
       data = null; rows = []; dirty = false; el('content').innerHTML = '';
+      el('bcs-navigation').innerHTML = '';
+      el('bcs-role-slot').innerHTML = '';
+      setSidebar(false, sidebarOpen);
       const h1 = root.querySelector('h1');
       if (h1) h1.textContent = 'Ban cán sự lớp';
       const avatar = el('bcs-avatar');
@@ -249,7 +318,15 @@ window.openDeputyWorkspace = async function() {
   function dashboardHtml() {
     const p = data.permissions || {}, students = data.students || [];
     const cards = [];
-    const card = (id, title, value, note, tone) => cards.push(window.ClassDashboard.card({ panel: id, title, value, note, tone, icon: id }));
+    const navPaths = {
+      points: 'm12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2-5.6-3-5.6 3 1.1-6.2L3 9.6l6.2-.9Z',
+      attendance: 'M8 2v4M16 2v4M4 9h16M5 4h14a1 1 0 0 1 1 1v15H4V5a1 1 0 0 1 1-1ZM8 14l3 3 5-5',
+      duty: 'm14 3 3 2-5 9-3-2ZM9 12c-4 1-6 4-6 8h14c-4-2-5-4-5-6M7 16l-1 4M10 17l1 3'
+    };
+    const card = (id, title) => {
+      const icon = navPaths[id] ? `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${navPaths[id]}"/></svg>` : window.ClassDashboard.icon(id);
+      cards.push(`<button type="button" class="dashboard-card bcs-nav-item" data-panel-link="${id}" aria-controls="bcs-panel-${id}" aria-pressed="false" title="${esc(title)}"><span class="bcs-nav-icon">${icon}</span><strong>${esc(title)}</strong></button>`);
+    };
 
     // Chỉ render các thẻ/tab mà tài khoản được cấp quyền
     if (p.points || p.scoreEdit) card('points', 'Tích điểm', '＋ / −', 'Cộng / trừ điểm thi đua', 'rose');
@@ -269,11 +346,20 @@ window.openDeputyWorkspace = async function() {
       </div>
     ` : '';
 
+    el('bcs-navigation').innerHTML = cards.join('');
+    el('bcs-role-slot').innerHTML = select;
+    el('bcs-class-name').textContent = data.className || 'Lớp 7N';
+    const branding = data.classBranding || {};
+    el('bcs-station-name').textContent = branding.stationName || 'Ban cán sự lớp';
+    el('bcs-class-slogan').textContent = branding.slogan || 'Đoàn kết - Tự tin - Tỏa sáng';
+    const avatarUrl = String(branding.avatarUrl || '');
+    const avatar = el('bcs-class-avatar');
+    if (/^(https?:\/\/|data:image\/(?:png|jpe?g|webp|gif);base64,)/i.test(avatarUrl)) {
+      avatar.innerHTML = `<img src="${esc(avatarUrl)}" alt="Ảnh đại diện lớp">`;
+    } else {
+      avatar.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="m12 2 3 7 7 3-7 3-3 7-3-7-7-3 7-3Z"/></svg>';
+    }
     return `
-      <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
-        ${select}
-        <div class="dashboard-card-grid">${cards.join('')}</div>
-      </div>
       ${!cards.length ? '<div class="bcs-empty">Chưa có chức năng được cấp cho vai trò này. Bạn vẫn có thể làm mới dữ liệu hoặc đăng xuất; GVCN sẽ kiểm tra phân công.</div>' : ''}
       ${p.scoresView && !p.points ? `
         <section data-panel="scores" class="bg-white rounded-2xl border border-slate-200 p-4 my-3">
@@ -330,10 +416,13 @@ window.openDeputyWorkspace = async function() {
 
   function installDashboardNavigation() {
     const defaultTab = root.querySelector('[data-panel="points"]') ? 'points' : (root.querySelector('[data-panel-link]')?.dataset.panelLink || '');
-    const active = selectedPanel || defaultTab;
+    const active = [...root.querySelectorAll('[data-panel-link]')].some(b => b.dataset.panelLink === selectedPanel) ? selectedPanel : defaultTab;
     if (active) showPanel(active);
     root.querySelectorAll('[data-panel-link]').forEach(b => {
-      b.onclick = () => showPanel(b.dataset.panelLink);
+      b.onclick = () => {
+        showPanel(b.dataset.panelLink);
+        if (sidebarOpen) setSidebar(false, true);
+      };
     });
     const picker = el('bcs-role-select');
     if (picker) picker.onchange = event => {
@@ -1095,6 +1184,7 @@ window.openDeputyWorkspace = async function() {
     clearInterval(timer);
     clearTimeout(permissionRefreshTimer);
     stopPermissions?.();
+    desktopMenu?.removeEventListener('change', syncSidebarViewport);
     root.remove();
   };
 

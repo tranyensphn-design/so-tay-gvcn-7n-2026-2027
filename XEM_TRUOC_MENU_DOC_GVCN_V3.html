@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="vi"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Ban cán sự — xem trước bằng dữ liệu minh họa</title><style>
+<html lang="vi"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>MENU DỌC GVCN V3 — Ban cán sự</title><style>
       #permission-role-list .permission-role-card{display:grid;grid-template-columns:minmax(0,1fr) minmax(360px,42%);align-items:center;gap:16px;padding:20px;border:1px solid #e2e8f0;border-radius:16px;background:#fff;box-shadow:none;opacity:1;min-width:0}
       #permission-role-list .permission-role-card.is-disabled{background:#f8fafc;border-color:#e2e8f0}
       #permission-role-list .permission-role-info{display:flex;align-items:center;gap:16px;min-width:0}
@@ -5876,10 +5876,10 @@ html[data-ui-density] button svg {
         padding-inline: 0;
     }
 }
-</style><script src="https://cdn.tailwindcss.com"></script><script src="https://unpkg.com/@phosphor-icons/web"></script></head><body style="margin:0"><div id="app">
-    <main id="deputy-workspace">
-      <button id="bcs-sidebar-backdrop" class="bcs-sidebar-backdrop" type="button" aria-label="Đóng menu điều hướng" tabindex="-1" hidden></button>
-      <aside aria-hidden="true" id="bcs-sidebar" class="bcs-sidebar" aria-label="Menu điều hướng Ban cán sự" tabindex="-1">
+</style><style>@media(min-width:1024px){#deputy-workspace .bcs-sidebar-backdrop{display:none!important}}</style><style>@media(min-width:1024px){#deputy-workspace .bcs-sidebar-backdrop{display:none!important}}</style></head><body style="margin:0"><div id="app">
+    <main class="bcs-menu-open" id="deputy-workspace">
+      <button id="bcs-sidebar-backdrop" class="bcs-sidebar-backdrop" type="button" aria-label="Đóng menu điều hướng" tabindex="-1"></button>
+      <aside aria-hidden="false" id="bcs-sidebar" class="bcs-sidebar" aria-label="Menu điều hướng Ban cán sự" tabindex="-1">
         <div class="bcs-sidebar-heading">
           <span><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10" fill="currentColor" /><path d="m16 7-3 6-6 4 4-7Z" fill="white" /></svg> Menu điều hướng</span>
           <button id="bcs-menu-close" class="bcs-menu-button" type="button" aria-label="Đóng menu"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" /></svg></button>
@@ -5896,7 +5896,7 @@ html[data-ui-density] button svg {
       <div id="bcs-main" class="bcs-main">
       <header class="bcs-topbar print:hidden">
         <div class="bcs-brand">
-          <button id="bcs-menu-toggle" class="bcs-menu-button" type="button" aria-label="Mở menu điều hướng" aria-controls="bcs-sidebar" aria-expanded="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16" /></svg></button>
+          <button id="bcs-menu-toggle" class="bcs-menu-button" type="button" aria-label="Mở menu điều hướng" aria-controls="bcs-sidebar" aria-expanded="true"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16" /></svg></button>
           <h2 id="deputy-view-title" class="bcs-brand-title">Tích Điểm</h2>
         </div>
         <nav style="display:flex;align-items:center;gap:10px">
@@ -6122,7 +6122,7 @@ html[data-ui-density] button svg {
               </div>
             </section>
 
-            <form id="score-form" data-request="e62705ba-e5ed-43e3-b52d-4f0ec0ef29aa" class="flex flex-col flex-1">
+            <form id="score-form" data-request="054c6549-a765-4d0a-80db-7ffb8dd38480" class="flex flex-col flex-1">
               <div class="p-3 md:p-3.5 flex-1">
                 <!-- 1. Loại thao tác (Cộng / Trừ) -->
                 <div class="flex rounded-xl p-1 bg-slate-100 border border-slate-200/60 shadow-inner mb-2">
@@ -6564,7 +6564,7 @@ html[data-ui-density] button svg {
           </div>
         </section>
         <div class="bg-white rounded-[1.5rem] shadow-lg border border-slate-100 p-4 md:p-6">
-          <form id="grade-form" data-request="ae69dfde-c87f-490c-835d-76430c8bc2b3" class="space-y-3">
+          <form id="grade-form" data-request="1cfbfb75-ec50-4b21-9023-e2c12ae9fae0" class="space-y-3">
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
               <label class="text-xs font-bold text-slate-600">Học sinh
                 <select disabled name="studentId" class="w-full mt-1 px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold"><option value="1">Học sinh 01</option><option value="2">Học sinh 02</option><option value="3">Học sinh 03</option><option value="4">Học sinh 04</option><option value="5">Học sinh 05</option><option value="6">Học sinh 06</option><option value="7">Học sinh 07</option><option value="8">Học sinh 08</option></select>
@@ -6607,7 +6607,7 @@ const desktop=matchMedia('(min-width:1024px)');
 function menu(open){open=Boolean(open&&!desktop.matches);root.classList.toggle('bcs-menu-open',open);toggle.setAttribute('aria-expanded',String(open));backdrop.hidden=!open;sidebar.inert=!desktop.matches&&!open;sidebar.setAttribute('aria-hidden',String(sidebar.inert));main.inert=open;}
 toggle.onclick=()=>menu(!root.classList.contains('bcs-menu-open'));
 document.getElementById('bcs-menu-close').onclick=()=>{menu(false);toggle.focus();};backdrop.onclick=()=>{menu(false);toggle.focus();};
-document.addEventListener('keydown',e=>{if(e.key==='Escape'){menu(false);toggle.focus();}});desktop.addEventListener('change',()=>menu(false));menu(false);
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){menu(false);toggle.focus();}});desktop.addEventListener('change',()=>menu(false));menu(!desktop.matches);
 document.querySelectorAll('[data-panel-link]').forEach(b=>b.onclick=()=>{document.querySelectorAll('[data-panel]').forEach(p=>p.hidden=p.dataset.panel!==b.dataset.panelLink);document.querySelectorAll('[data-panel-link]').forEach(x=>x.setAttribute('aria-pressed',String(x===b)));document.getElementById('deputy-view-title').textContent=b.textContent;menu(false);});
 document.querySelectorAll('[data-action],#logout,#bcs-parent-lookup-btn').forEach(b=>b.onclick=()=>alert('Bản minh họa, không kết nối hoặc ghi dữ liệu lớp thật.'));
 </script></body></html>
