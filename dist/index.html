@@ -940,18 +940,30 @@
     flex: 0 0 auto;
 }
 
-/* Neo menu vào thẻ, không vào nút: không tràn trái khi cụm nút xuống dòng. */
+/* Menu thao tác học sinh: to rõ, đẹp, không bị ép hẹp thành dải dọc trên điện thoại */
 #main-content .student-directory-card [id^="student-menu-"] {
-    right: 10px;
-    top: calc(100% - 4px);
-    max-width: calc(100% - 20px);
+    position: absolute;
+    right: 0;
+    top: calc(100% + 6px);
+    width: 204px !important;
+    min-width: 196px !important;
+    max-width: 240px !important;
     margin-top: 0;
+    z-index: 50;
+    background: #ffffff;
+    border-radius: 18px;
+    box-shadow: 0 16px 40px -6px rgba(15, 23, 42, 0.22), 0 4px 12px -2px rgba(15, 23, 42, 0.08);
+    border: 1px solid #e2e8f0;
+    padding: 8px !important;
 }
 
 #main-content .student-directory-card .student-menu-button {
-    width: 30px !important;
-    height: 30px !important;
+    width: 32px !important;
+    height: 32px !important;
+    min-width: 32px;
+    min-height: 32px;
     padding: 0 !important;
+    border-radius: 9px !important;
 }
 
 #main-content .student-directory-card:focus-within {
@@ -12655,30 +12667,35 @@ html[data-ui-density] button svg {
                                     <div class="student-card-menu">
                                         <button
                                             onclick="toggleStudentMenu(event, ${s.id})"
-                                            class="student-menu-button rounded-full text-slate-300 hover:text-slate-700 hover:bg-slate-100 flex items-center justify-center transition-colors"
+                                            class="student-menu-button rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 flex items-center justify-center transition-colors"
                                             type="button" aria-label="Tùy chọn học sinh" title="Tùy chọn">
-                                            <i class="ph-bold ph-dots-three-vertical text-base"></i>
+                                            <i class="ph-bold ph-dots-three-vertical text-lg"></i>
                                         </button>
             
                                         <div id="student-menu-${s.id}"
-                                             class="hidden absolute right-0 mt-1 w-40 bg-white rounded-2xl shadow-[0_14px_38px_rgba(15,23,42,0.16)] border border-slate-100 overflow-hidden z-40 p-2 animate-fade-in">
-                                            <div class="space-y-1">
-                                                <button onclick="closeAllStudentMenus(); openStudentHistoryModal(${s.id})" class="w-full text-left px-3 py-2 text-xs font-bold text-emerald-600 hover:bg-emerald-50 rounded-xl flex items-center gap-2.5">
-                                                    <i class="ph-bold ph-clock-counter-clockwise text-base"></i><span>Lịch sử</span>
+                                             class="hidden absolute right-0 mt-1 w-52 bg-white rounded-2xl shadow-[0_16px_40px_-6px_rgba(15,23,42,0.22),0_4px_12px_-2px_rgba(15,23,42,0.08)] border border-slate-200 overflow-hidden z-50 p-2 animate-fade-in">
+                                            <div class="space-y-1.5">
+                                                <button onclick="closeAllStudentMenus(); openStudentHistoryModal(${s.id})" class="w-full text-left px-3.5 py-2.5 text-xs font-black text-emerald-700 hover:bg-emerald-50 rounded-xl flex items-center gap-3 transition-colors cursor-pointer">
+                                                    <span class="w-7 h-7 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0 shadow-2xs"><i class="ph-bold ph-clock-counter-clockwise text-base"></i></span>
+                                                    <span>Lịch sử điểm</span>
                                                 </button>
             
                                                 ${canEditOrDelete ? `
-                                                    <button onclick="closeAllStudentMenus(); chooseStudentAvatar(${s.id})" class="w-full text-left px-3 py-2 text-xs font-bold text-violet-600 hover:bg-violet-50 rounded-xl flex items-center gap-2.5">
-                                                        <i class="ph-fill ph-camera text-base"></i><span>Thay ảnh</span>
+                                                    <button onclick="closeAllStudentMenus(); chooseStudentAvatar(${s.id})" class="w-full text-left px-3.5 py-2.5 text-xs font-black text-violet-700 hover:bg-violet-50 rounded-xl flex items-center gap-3 transition-colors cursor-pointer">
+                                                        <span class="w-7 h-7 rounded-lg bg-violet-100 text-violet-700 flex items-center justify-center shrink-0 shadow-2xs"><i class="ph-fill ph-camera text-base"></i></span>
+                                                        <span>Thay ảnh hồ sơ</span>
                                                     </button>
-                                                    <button onclick="closeAllStudentMenus(); openGvcnResetPasswordModal(${s.id})" class="w-full text-left px-3 py-2 text-xs font-bold text-amber-600 hover:bg-amber-50 rounded-xl flex items-center gap-2.5">
-                                                        <i class="ph-fill ph-key text-base"></i><span>Cấp lại mật khẩu</span>
+                                                    <button onclick="closeAllStudentMenus(); openGvcnResetPasswordModal(${s.id})" class="w-full text-left px-3.5 py-2.5 text-xs font-black text-amber-700 hover:bg-amber-50 rounded-xl flex items-center gap-3 transition-colors cursor-pointer">
+                                                        <span class="w-7 h-7 rounded-lg bg-amber-100 text-amber-700 flex items-center justify-center shrink-0 shadow-2xs"><i class="ph-fill ph-key text-base"></i></span>
+                                                        <span>Cấp lại mật khẩu</span>
                                                     </button>
-                                                    <button onclick="closeAllStudentMenus(); openEditStudentModal(${s.id})" class="w-full text-left px-3 py-2 text-xs font-bold text-blue-600 hover:bg-blue-50 rounded-xl flex items-center gap-2.5">
-                                                        <i class="ph-fill ph-pencil-simple text-base"></i><span>Chỉnh sửa</span>
+                                                    <button onclick="closeAllStudentMenus(); openEditStudentModal(${s.id})" class="w-full text-left px-3.5 py-2.5 text-xs font-black text-blue-700 hover:bg-blue-50 rounded-xl flex items-center gap-3 transition-colors cursor-pointer">
+                                                        <span class="w-7 h-7 rounded-lg bg-blue-100 text-blue-700 flex items-center justify-center shrink-0 shadow-2xs"><i class="ph-fill ph-pencil-simple text-base"></i></span>
+                                                        <span>Chỉnh sửa hồ sơ</span>
                                                     </button>
-                                                    <button onclick="closeAllStudentMenus(); deleteStudent(${s.id})" class="w-full text-left px-3 py-2 text-xs font-bold text-rose-600 hover:bg-rose-50 rounded-xl flex items-center gap-2.5">
-                                                        <i class="ph-fill ph-trash text-base"></i><span>Xóa</span>
+                                                    <button onclick="closeAllStudentMenus(); deleteStudent(${s.id})" class="w-full text-left px-3.5 py-2.5 text-xs font-black text-rose-700 hover:bg-rose-50 rounded-xl flex items-center gap-3 transition-colors cursor-pointer">
+                                                        <span class="w-7 h-7 rounded-lg bg-rose-100 text-rose-700 flex items-center justify-center shrink-0 shadow-2xs"><i class="ph-fill ph-trash text-base"></i></span>
+                                                        <span>Xóa học sinh</span>
                                                     </button>
                                                 ` : ''}
                                             </div>

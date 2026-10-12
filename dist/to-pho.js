@@ -712,75 +712,398 @@ window.openDeputyWorkspace = async function() {
     }
 
     if (p.grades) {
+      let bcsSemester = 'HK1';
+      let bcsSubject = (data.subjects && data.subjects[0]?.id) || 'math';
+      let bcsGroup = 'all';
+      let bcsSearch = '';
+
+      const calcReward = (score, seq) => {
+        const num = parseFloat(score);
+        const s = Number(seq);
+        if (isNaN(num) || num < 0 || num > 10) return 0;
+        if (s === 5 || s === 6) {
+          if (num >= 8) return 15;
+          if (num >= 5) return 5;
+          return -5;
+        }
+        if (num === 10) return 10;
+        if (num >= 9) return 9;
+        if (num >= 8) return 8;
+        if (num >= 7) return 7;
+        if (num >= 6) return 6;
+        if (num === 5) return -1;
+        if (num >= 4) return -2;
+        if (num >= 3) return -3;
+        if (num >= 2) return -4;
+        return -5;
+      };
+
+      const fmtReward = pts => {
+        const n = Number(pts) || 0;
+        return n > 0 ? `+${n}đ` : `${n}đ`;
+      };
+
+      const getGrade = (sId, subId, sem, seq) => {
+        return (data.grades || []).find(r =>
+          String(r.studentId) === String(sId) &&
+          r.subjectId === subId &&
+          r.semester === sem &&
+          Number(r.sequence) === Number(seq)
+        );
+      };
+
+      const calcAverage = (sId, subId, sem) => {
+        let weightedSum = 0;
+        let totalWeight = 0;
+        for (let s = 1; s <= 6; s++) {
+          const rec = getGrade(sId, subId, sem, s);
+          if (rec && rec.score !== null && rec.score !== '' && !isNaN(rec.score)) {
+            const sc = parseFloat(rec.score);
+            const w = s === 5 ? 2 : (s === 6 ? 3 : 1);
+            weightedSum += sc * w;
+            totalWeight += w;
+          }
+        }
+        return totalWeight > 0 ? (weightedSum / totalWeight).toFixed(1) : '---';
+      };
+
+      const calcTotalReward = (sId, subId, sem) => {
+        let total = 0;
+        for (let s = 1; s <= 6; s++) {
+          const rec = getGrade(sId, subId, sem, s);
+          if (rec && rec.score !== null && rec.score !== '' && !isNaN(rec.score)) {
+            total += calcReward(rec.score, s);
+          }
+        }
+        return total;
+      };
+
       const section = document.createElement('section');
       section.dataset.panel = 'grades';
-      section.className = 'max-w-7xl mx-auto space-y-3 pb-8 pt-1 px-1 md:px-2';
-      section.innerHTML = `
-        <section class="page-banner" data-page-banner="report" data-tone="sky">
-          <div class="page-banner-body">
-            <div class="page-banner-icon"><i class="ph-fill ph-clipboard-text text-2xl text-sky-600"></i></div>
-            <div class="page-banner-copy">
-              <p class="page-banner-kicker">Học tập & Tiến bộ</p>
-              <h1 class="page-banner-title">Sổ điểm học tập</h1>
-              <p class="page-banner-description">Nhập / sửa điểm theo môn và học kỳ</p>
-            </div>
-          </div>
-        </section>
-        <div class="bg-white rounded-[1.5rem] shadow-lg border border-slate-100 p-4 md:p-6">
-          <form id="grade-form" data-request="${safeUuid()}" class="space-y-3">
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
-              <label class="text-xs font-bold text-slate-600">Học sinh
-                <select name="studentId" class="w-full mt-1 px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold">${data.students.map(s => `<option value="${esc(s.id)}">${esc(s.name)}</option>`).join('')}</select>
-              </label>
-              <label class="text-xs font-bold text-slate-600">Môn học
-                <select name="subjectId" class="w-full mt-1 px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold">${data.subjects.map(s => `<option value="${esc(s.id)}">${esc(s.name)}</option>`).join('')}</select>
-              </label>
-              <label class="text-xs font-bold text-slate-600">Học kỳ
-                <select name="semester" class="w-full mt-1 px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold"><option>HK1</option><option>HK2</option></select>
-              </label>
-              <label class="text-xs font-bold text-slate-600">Cột điểm
-                <select name="sequence" class="w-full mt-1 px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold">${['TX1','TX2','TX3','TX4','Giữa kỳ','Cuối kỳ'].map((s,i) => `<option value="${i+1}">${s}</option>`).join('')}</select>
-              </label>
-            </div>
-            <div class="flex items-center justify-between gap-3 pt-2">
-              <p id="grade-current" class="text-xs font-bold text-indigo-700"></p>
-              <div class="flex items-center gap-2">
-                <input name="score" type="number" min="0" max="10" step="any" inputmode="decimal" placeholder="Điểm mới (0-10)" class="w-32 px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold">
-                <button type="submit" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow-sm transition-all cursor-pointer">Lưu điểm</button>
-              </div>
-            </div>
-          </form>
-          <div class="mt-4 pt-3 border-t border-slate-100">
-            <details class="text-xs text-slate-600">
-              <summary class="font-bold cursor-pointer">Xem điểm đã ghi nhận</summary>
-              <div class="space-y-1 mt-2">
-                ${data.grades.map(r => `<p>${esc(data.students.find(s => s.id === r.studentId)?.name)} • ${esc(data.subjects.find(s => s.id === r.subjectId)?.name)} • ${esc(r.semester)} • ${Number(r.sequence)<=4 ? 'TX'+Number(r.sequence) : Number(r.sequence)===5 ? 'Giữa kỳ' : 'Cuối kỳ'}: <b>${esc(r.score)}</b></p>`).join('') || '<p class="italic text-slate-400">Chưa có điểm.</p>'}
-              </div>
-            </details>
-          </div>
-        </div>
-      </section>
-    `;
-    el('content').appendChild(section);
+      section.className = 'max-w-7xl mx-auto space-y-4 pb-12 pt-1 px-1 md:px-2';
 
-    const form = el('grade-form');
-    const currentRecord = () => data.grades.find(r => r.studentId === form.querySelector('[name=studentId]').value && r.subjectId === form.querySelector('[name=subjectId]').value && r.semester === form.querySelector('[name=semester]').value && Number(r.sequence) === Number(form.querySelector('[name=sequence]').value));
-    const updateCurrent = () => { el('grade-current').textContent = 'Điểm hiện tại: ' + (currentRecord()?.score ?? 'Chưa nhập'); };
-    form.querySelectorAll('select').forEach(select => select.addEventListener('change', updateCurrent));
-    updateCurrent();
-    form.onsubmit = event => {
-      event.preventDefault();
-      if (working || leaving) return;
-      dirty = true;
-      const values = Object.fromEntries(new FormData(form));
-      if (values.score === '' && !confirm('Xóa điểm đang chọn và hoàn tác đóng góp điểm theo quy định của lớp?')) return;
-      run(async () => {
-        await api({ action: 'grade', ...values, expectedRecord: currentRecord()?.version ?? null, requestId: form.dataset.request });
-        await load();
-        message('Đã lưu điểm học tập và cập nhật điểm tích.');
-      });
-    };
-  }
+      const renderGradesPanel = () => {
+        const groups = [...new Set((data.students || []).map(s => s.group).filter(Boolean))];
+        let visibleStudents = (data.students || []).slice();
+        if (bcsGroup !== 'all') {
+          visibleStudents = visibleStudents.filter(s => s.group === bcsGroup);
+        }
+        if (bcsSearch.trim()) {
+          const q = bcsSearch.toLowerCase().trim();
+          visibleStudents = visibleStudents.filter(s =>
+            (s.name || '').toLowerCase().includes(q) ||
+            (s.code || '').toLowerCase().includes(q)
+          );
+        }
+
+        const assessCols = [
+          { seq: 1, label: 'TX1' },
+          { seq: 2, label: 'TX2' },
+          { seq: 3, label: 'TX3' },
+          { seq: 4, label: 'TX4' },
+          { seq: 5, label: 'GIỮA KỲ' },
+          { seq: 6, label: 'CUỐI KỲ' }
+        ];
+
+        const semHtml = ['HK1', 'HK2'].map(sem => `
+          <button type="button" data-bcs-sem="${sem}" class="px-4 py-2 rounded-xl font-black text-xs transition-all ${bcsSemester === sem ? 'bg-[#1e1b4b] text-white shadow-md' : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'} cursor-pointer">
+            ${sem}
+          </button>
+        `).join('');
+
+        const subHtml = (data.subjects || []).map(sub => `
+          <button type="button" data-bcs-sub="${esc(sub.id)}" class="px-3.5 py-1.5 rounded-xl font-bold text-xs transition-all whitespace-nowrap shrink-0 ${bcsSubject === sub.id ? 'bg-blue-600 text-white shadow-md' : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-50'} cursor-pointer">
+            ${esc(sub.name || sub.id)}
+          </button>
+        `).join('');
+
+        const rowsHtml = visibleStudents.map((s, idx) => {
+          let enteredCount = 0;
+          let cellsHtml = '';
+
+          assessCols.forEach(col => {
+            const rec = getGrade(s.id, bcsSubject, bcsSemester, col.seq);
+            const scoreVal = (rec && rec.score !== null && !isNaN(rec.score)) ? rec.score : '';
+            if (scoreVal !== '') enteredCount++;
+            const rew = scoreVal !== '' ? calcReward(scoreVal, col.seq) : 0;
+            const rewClass = rew > 0 ? 'text-emerald-600' : rew < 0 ? 'text-rose-600' : 'text-slate-400';
+
+            cellsHtml += `
+              <td class="p-2 text-center align-middle">
+                <div class="flex flex-col items-center justify-center">
+                  <input type="number" step="0.25" min="0" max="10" inputmode="decimal" placeholder="-"
+                    value="${scoreVal !== '' ? esc(scoreVal) : ''}"
+                    data-grade-student="${esc(s.id)}"
+                    data-grade-seq="${col.seq}"
+                    class="bcs-grade-input w-16 h-10 text-center font-black text-slate-800 bg-slate-50 border border-slate-200 focus:border-blue-500 focus:bg-white rounded-xl outline-none text-sm transition-all shadow-2xs">
+                  <span class="text-[10px] mt-1 font-extrabold ${rewClass}">${scoreVal !== '' ? fmtReward(rew) : '-'}</span>
+                </div>
+              </td>
+            `;
+          });
+
+          const avg = calcAverage(s.id, bcsSubject, bcsSemester);
+          const totalRew = calcTotalReward(s.id, bcsSubject, bcsSemester);
+          const totalRewClass = totalRew > 0 ? 'text-emerald-600' : totalRew < 0 ? 'text-rose-600' : 'text-slate-700';
+
+          return `
+            <tr data-student-row="${esc(s.id)}" class="border-b border-slate-100 hover:bg-slate-50/80 transition-colors">
+              <td class="p-3 text-center font-bold text-slate-400 text-xs">${idx + 1}</td>
+              <td class="p-3">
+                <div class="flex items-center gap-2.5">
+                  <div class="w-8 h-8 rounded-full bg-indigo-50 border border-indigo-100 text-indigo-700 font-black text-xs flex items-center justify-center shrink-0">${esc((s.name || '').slice(-2))}</div>
+                  <div class="min-w-0">
+                    <div class="font-black text-slate-800 text-xs truncate">${esc(s.name)}</div>
+                    <div class="text-[10px] font-bold text-slate-400">${esc(s.group || '')} • ${enteredCount}/6 điểm</div>
+                  </div>
+                </div>
+              </td>
+              <td class="p-3 text-center font-bold text-slate-600 text-xs whitespace-nowrap">${esc(s.group || '')}</td>
+              ${cellsHtml}
+              <td class="p-3 text-center font-black text-indigo-600 text-sm">${avg}</td>
+              <td class="p-3 text-center font-black text-xs ${totalRewClass}">${fmtReward(totalRew)}</td>
+            </tr>
+          `;
+        }).join('');
+
+        section.innerHTML = `
+          <section class="page-banner" data-page-banner="report" data-tone="sky">
+            <div class="page-banner-body">
+              <div class="page-banner-icon"><i class="ph-fill ph-clipboard-text text-2xl text-sky-600"></i></div>
+              <div class="page-banner-copy">
+                <p class="page-banner-kicker">Học tập & Tiến bộ · Giao diện Ban cán sự</p>
+                <h1 class="page-banner-title">Sổ điểm học tập</h1>
+                <p class="page-banner-description">Chuẩn ma trận 6 cột đánh giá theo Thông tư: TX1, TX2, TX3, TX4, Giữa kỳ, Cuối kỳ</p>
+              </div>
+            </div>
+          </section>
+
+          <div class="bg-white rounded-[2rem] shadow-sm border border-slate-200/80 p-4 md:p-6 space-y-4">
+            <!-- Toolbar -->
+            <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 pb-3 border-b border-slate-100">
+              <div class="flex items-center gap-2">
+                <span class="text-xs font-black text-slate-400 uppercase tracking-wider">Học kỳ:</span>
+                <div class="flex gap-1">${semHtml}</div>
+              </div>
+              <div class="flex flex-wrap items-center gap-2 w-full md:w-auto">
+                <select id="bcs-grade-group-select" class="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 outline-none cursor-pointer">
+                  <option value="all" ${bcsGroup === 'all' ? 'selected' : ''}>Tất cả tổ</option>
+                  ${groups.map(g => `<option value="${esc(g)}" ${bcsGroup === g ? 'selected' : ''}>${esc(g)}</option>`).join('')}
+                </select>
+                <div class="relative flex-1 sm:w-48">
+                  <input type="text" id="bcs-grade-search" value="${esc(bcsSearch)}" placeholder="🔎 Tìm học sinh..." class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 outline-none">
+                </div>
+                <span class="px-3 py-1.5 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-black whitespace-nowrap">
+                  <i class="ph-fill ph-check-circle"></i> Tự động đồng bộ
+                </span>
+              </div>
+            </div>
+
+            <!-- Subject buttons -->
+            <div class="flex items-center gap-2 overflow-x-auto pb-1.5 custom-scrollbar">
+              <span class="text-xs font-black text-slate-400 uppercase tracking-wider shrink-0 mr-1">Môn:</span>
+              ${subHtml}
+            </div>
+
+            <!-- Scroll hint for mobile -->
+            <p class="text-[11px] text-slate-400 font-bold italic md:hidden">↔ Vuốt ngang bảng để xem đủ 6 cột điểm · Bấm vào ô để sửa điểm</p>
+
+            <!-- Matrix Table -->
+            <div class="overflow-x-auto rounded-2xl border border-slate-200 bg-white">
+              <table class="w-full text-left border-collapse">
+                <thead class="bg-[#1e1b4b] text-white text-[10px] uppercase font-black tracking-wider">
+                  <tr>
+                    <th class="p-3 text-center w-12">STT</th>
+                    <th class="p-3 w-48">Học sinh</th>
+                    <th class="p-3 text-center w-20">Tổ</th>
+                    ${assessCols.map(c => `<th class="p-3 text-center w-24">${c.label}</th>`).join('')}
+                    <th class="p-3 text-center w-24">TB MÔN</th>
+                    <th class="p-3 text-center w-24">ĐIỂM TÍCH</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100 bg-white">
+                  ${rowsHtml || `<tr><td colspan="11" class="p-8 text-center text-slate-400 font-bold text-xs">Không có học sinh trong danh sách.</td></tr>`}
+                </tbody>
+              </table>
+            </div>
+
+            <!-- Single entry fallback form in collapsible -->
+            <div class="pt-3 border-t border-slate-100">
+              <details class="text-xs text-slate-600">
+                <summary class="font-bold cursor-pointer hover:text-indigo-600 transition-colors">➕ Biểu mẫu nhập nhanh từng học sinh (Dự phòng)</summary>
+                <form id="grade-form" data-request="${safeUuid()}" class="space-y-3 mt-3 p-4 bg-slate-50 rounded-2xl border border-slate-200">
+                  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
+                    <label class="text-xs font-bold text-slate-600">Học sinh
+                      <select name="studentId" class="w-full mt-1 px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold">${data.students.map(s => `<option value="${esc(s.id)}">${esc(s.name)}</option>`).join('')}</select>
+                    </label>
+                    <label class="text-xs font-bold text-slate-600">Môn học
+                      <select name="subjectId" class="w-full mt-1 px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold">${data.subjects.map(s => `<option value="${esc(s.id)}">${esc(s.name)}</option>`).join('')}</select>
+                    </label>
+                    <label class="text-xs font-bold text-slate-600">Học kỳ
+                      <select name="semester" class="w-full mt-1 px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold"><option>HK1</option><option>HK2</option></select>
+                    </label>
+                    <label class="text-xs font-bold text-slate-600">Cột điểm
+                      <select name="sequence" class="w-full mt-1 px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold">${['TX1','TX2','TX3','TX4','Giữa kỳ','Cuối kỳ'].map((s,i) => `<option value="${i+1}">${s}</option>`).join('')}</select>
+                    </label>
+                  </div>
+                  <div class="flex items-center justify-between gap-3 pt-2">
+                    <p id="grade-current" class="text-xs font-bold text-indigo-700"></p>
+                    <div class="flex items-center gap-2">
+                      <input name="score" type="number" min="0" max="10" step="any" inputmode="decimal" placeholder="Điểm (0-10)" class="w-32 px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold">
+                      <button type="submit" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow-sm transition-all cursor-pointer">Lưu điểm</button>
+                    </div>
+                  </div>
+                </form>
+              </details>
+            </div>
+          </div>
+        `;
+
+        // Bind events
+        section.querySelectorAll('[data-bcs-sem]').forEach(btn => {
+          btn.onclick = () => {
+            bcsSemester = btn.dataset.bcsSem;
+            renderGradesPanel();
+          };
+        });
+
+        section.querySelectorAll('[data-bcs-sub]').forEach(btn => {
+          btn.onclick = () => {
+            bcsSubject = btn.dataset.bcsSub;
+            renderGradesPanel();
+          };
+        });
+
+        const grpSel = section.querySelector('#bcs-grade-group-select');
+        if (grpSel) {
+          grpSel.onchange = () => {
+            bcsGroup = grpSel.value;
+            renderGradesPanel();
+          };
+        }
+
+        const searchInp = section.querySelector('#bcs-grade-search');
+        if (searchInp) {
+          searchInp.oninput = () => {
+            bcsSearch = searchInp.value;
+            renderGradesPanel();
+            const reInp = section.querySelector('#bcs-grade-search');
+            if (reInp) {
+              reInp.focus();
+              reInp.selectionStart = reInp.selectionEnd = reInp.value.length;
+            }
+          };
+        }
+
+        // Inline inputs change / blur handlers
+        section.querySelectorAll('.bcs-grade-input').forEach(inp => {
+          inp.onchange = async () => {
+            if (working || leaving) return;
+            const studentId = inp.dataset.gradeStudent;
+            const seq = inp.dataset.gradeSeq;
+            const oldRec = getGrade(studentId, bcsSubject, bcsSemester, seq);
+            const oldScore = oldRec?.score !== undefined ? String(oldRec.score) : '';
+            const val = inp.value.trim();
+
+            if (val === oldScore) return;
+
+            if (val !== '') {
+              const num = parseFloat(val);
+              if (isNaN(num) || num < 0 || num > 10) {
+                alert('Điểm số phải từ 0 đến 10!');
+                inp.value = oldScore;
+                return;
+              }
+            } else {
+              if (!confirm('Xóa điểm học sinh này?')) {
+                inp.value = oldScore;
+                return;
+              }
+            }
+
+            dirty = true;
+            run(async () => {
+              const reqId = safeUuid();
+              await api({
+                action: 'grade',
+                studentId: String(studentId),
+                subjectId: bcsSubject,
+                semester: bcsSemester,
+                sequence: Number(seq),
+                score: val === '' ? '' : parseFloat(val),
+                expectedRecord: oldRec?.version ?? null,
+                requestId: reqId
+              });
+
+              // Cập nhật mảng data.grades tại chỗ
+              if (!data.grades) data.grades = [];
+              const recIndex = data.grades.findIndex(r =>
+                String(r.studentId) === String(studentId) &&
+                r.subjectId === bcsSubject &&
+                r.semester === bcsSemester &&
+                Number(r.sequence) === Number(seq)
+              );
+
+              if (val === '') {
+                if (recIndex !== -1) data.grades.splice(recIndex, 1);
+              } else {
+                const parsed = parseFloat(val);
+                if (recIndex !== -1) {
+                  data.grades[recIndex].score = parsed;
+                  data.grades[recIndex].version = 'v_' + Date.now();
+                } else {
+                  data.grades.push({
+                    studentId: String(studentId),
+                    subjectId: bcsSubject,
+                    semester: bcsSemester,
+                    sequence: Number(seq),
+                    score: parsed,
+                    version: 'v_' + Date.now()
+                  });
+                }
+              }
+
+              const student = (data.students || []).find(s => String(s.id) === String(studentId));
+              message(`Đã lưu điểm ${val !== '' ? val : '(đã xóa)'} cho ${student?.name || 'học sinh'}.`);
+              renderGradesPanel();
+            });
+          };
+
+          inp.onkeydown = e => {
+            if (e.key === 'Enter') {
+              inp.blur();
+            }
+          };
+        });
+
+        // Bind single form inside details
+        const form = section.querySelector('#grade-form');
+        if (form) {
+          const currentRecord = () => data.grades.find(r => r.studentId === form.querySelector('[name=studentId]').value && r.subjectId === form.querySelector('[name=subjectId]').value && r.semester === form.querySelector('[name=semester]').value && Number(r.sequence) === Number(form.querySelector('[name=sequence]').value));
+          const updateCurrent = () => {
+            const curEl = section.querySelector('#grade-current');
+            if (curEl) curEl.textContent = 'Điểm hiện tại: ' + (currentRecord()?.score ?? 'Chưa nhập');
+          };
+          form.querySelectorAll('select').forEach(select => select.addEventListener('change', updateCurrent));
+          updateCurrent();
+          form.onsubmit = event => {
+            event.preventDefault();
+            if (working || leaving) return;
+            dirty = true;
+            const values = Object.fromEntries(new FormData(form));
+            if (values.score === '' && !confirm('Xóa điểm đang chọn và hoàn tác đóng góp điểm theo quy định của lớp?')) return;
+            run(async () => {
+              await api({ action: 'grade', ...values, expectedRecord: currentRecord()?.version ?? null, requestId: form.dataset.request });
+              await load();
+              message('Đã lưu điểm học tập và cập nhật điểm tích.');
+            });
+          };
+        }
+      };
+
+      renderGradesPanel();
+      el('content').appendChild(section);
+    }
 
   // Cài đặt tương tác cho Form Tích Điểm (Chuẩn Ảnh 1)
   const scoreForm = el('score-form');
