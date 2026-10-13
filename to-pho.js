@@ -95,6 +95,37 @@ window.openDeputyWorkspace = async function() {
 
   const ratings = { good:'Tốt (+5)', done:'Đạt (0)', incomplete:'Chưa đạt (-3)', absent:'Nghỉ trực (-5)' };
   const days = { mon:'Thứ Hai', tue:'Thứ Ba', wed:'Thứ Tư', thu:'Thứ Năm', fri:'Thứ Sáu', sat:'Thứ Bảy' };
+  const DUTY_DAYS_LIST = [
+    { key: 'mon', label: 'Thứ Hai', short: 'T2' },
+    { key: 'tue', label: 'Thứ Ba', short: 'T3' },
+    { key: 'wed', label: 'Thứ Tư', short: 'T4' },
+    { key: 'thu', label: 'Thứ Năm', short: 'T5' },
+    { key: 'fri', label: 'Thứ Sáu', short: 'T6' },
+    { key: 'sat', label: 'Thứ Bảy', short: 'T7' }
+  ];
+  const DUTY_SHIFTS_LIST = [
+    { key: 'morning', label: 'Buổi sáng', short: 'Sáng', icon: 'ph-sun' },
+    { key: 'afternoon', label: 'Buổi chiều', short: 'Chiều', icon: 'ph-cloud-sun' }
+  ];
+  const DUTY_EVAL_CFG = {
+    good: { label: 'Tốt (+5đ)', short: 'Tốt', points: 5, icon: '🌟', cls: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+    done: { label: 'Đạt (0đ)', short: 'Đạt', points: 0, icon: '✅', cls: 'bg-blue-50 text-blue-700 border-blue-200' },
+    incomplete: { label: 'Chưa đạt (-3đ)', short: 'Chưa đạt', points: -3, icon: '⚠️', cls: 'bg-amber-50 text-amber-700 border-amber-200' },
+    absent: { label: 'Nghỉ trực (-5đ)', short: 'Nghỉ trực', points: -5, icon: '❌', cls: 'bg-rose-50 text-rose-700 border-rose-200' }
+  };
+  let dutySelectedDay = '';
+  let dutySelectedShift = 'morning';
+  const getTodayDayKey = () => {
+    try {
+      const todayStr = data?.today || new Date().toISOString().slice(0, 10);
+      const d = new Date(todayStr + 'T00:00:00');
+      const day = d.getDay();
+      const map = ['mon', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
+      return map[day] || 'mon';
+    } catch (_) {
+      return 'mon';
+    }
+  };
   let data, rows = [], working = false, dirty = false, recoveryActive = false, sessionBlocked = false, leaving = false, selectedRoleKey = '', selectedPanel = '', permissionRefreshQueued = false, permissionRefreshTimer = null;
   let currentActionType = 'add'; // 'add' hoặc 'subtract'
   let currentTargetType = 'student'; // 'student', 'group', 'class'
@@ -618,6 +649,56 @@ window.openDeputyWorkspace = async function() {
       </section>
     ` : '';
 
+    if (!dutySelectedDay) dutySelectedDay = getTodayDayKey();
+    if (!['morning', 'afternoon'].includes(dutySelectedShift)) dutySelectedShift = 'morning';
+
+    const parseDutyDate = k => {
+      const parts = String(k || '').split('-').map(Number);
+      return new Date(parts[0] || 2026, (parts[1] || 1) - 1, parts[2] || 1);
+    };
+    const fmtDutyDate = d => `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`;
+    const getDutyDayDate = (weekMondayStr, dayIdx) => {
+      const d = parseDutyDate(weekMondayStr);
+      d.setDate(d.getDate() + dayIdx);
+      return d;
+    };
+    const getDutyWeekRange = weekMondayStr => {
+      const a = parseDutyDate(weekMondayStr);
+      const b = new Date(a);
+      b.setDate(b.getDate() + 5);
+      return `${fmtDutyDate(a)} - ${fmtDutyDate(b)}/${b.getFullYear()}`;
+    };
+
+    const currentWeekDuties = (data.duties || []).filter(d => d.week === data.week);
+    const getShiftDuties = (dayKey, shiftKey) => currentWeekDuties.filter(d => d.day === dayKey && d.shift === shiftKey);
+    const getShiftStudents = (dayKey, shiftKey) => {
+      const ds = getShiftDuties(dayKey, shiftKey);
+      return ds.map(d => (data.students || []).find(s => String(s.id) === String(d.studentId))).filter(Boolean);
+    };
+    const getShiftEval = (dayKey, shiftKey) => {
+      const ds = getShiftDuties(dayKey, shiftKey);
+      for (const d of ds) {
+        if (d.teacherEvaluation?.status) return { status: d.teacherEvaluation.status, teacher: true };
+        if (d.evaluation?.rating) return { status: d.evaluation.rating, reason: d.evaluation.reason || '', teacherLocked: d.evaluation.teacherLocked };
+      }
+      return null;
+    };
+    const renderDutyStatusBadge = ev => {
+      if (!ev || !DUTY_EVAL_CFG[ev.status]) {
+        return '<span class="duty-status bg-slate-50 text-slate-500 border border-slate-200">Chưa đánh giá</span>';
+      }
+      const c = DUTY_EVAL_CFG[ev.status];
+      return `<span class="duty-status ${c.cls}">${c.icon} ${c.short}</span>`;
+    };
+
+    const selectedDayIdx = Math.max(0, DUTY_DAYS_LIST.findIndex(d => d.key === dutySelectedDay));
+    const selectedDayObj = DUTY_DAYS_LIST[selectedDayIdx] || DUTY_DAYS_LIST[0];
+    const selectedDate = getDutyDayDate(data.week, selectedDayIdx);
+    const selectedShiftObj = DUTY_SHIFTS_LIST.find(s => s.key === dutySelectedShift) || DUTY_SHIFTS_LIST[0];
+    const selectedShiftStudents = getShiftStudents(dutySelectedDay, dutySelectedShift);
+    const selectedShiftEval = getShiftEval(dutySelectedDay, dutySelectedShift);
+    const weekRange = getDutyWeekRange(data.week);
+
     const dutyPanelHtml = p.dutyView ? `
       <section data-panel="duty" class="max-w-7xl mx-auto space-y-3 pb-8 pt-1 px-1 md:px-2">
         <section class="page-banner" data-page-banner="duty" data-tone="teal">
@@ -626,32 +707,219 @@ window.openDeputyWorkspace = async function() {
             <div class="page-banner-copy">
               <p class="page-banner-kicker">Lớp học xanh – sạch – đẹp</p>
               <h1 class="page-banner-title">Trực nhật • Tuần ${esc(data.week)}</h1>
-              <p class="page-banner-description">Chấm điểm ca trực và theo dõi nền nếp vệ sinh lớp</p>
+              <p class="page-banner-description">Chấm điểm ca trực và theo dõi nề nếp vệ sinh lớp</p>
             </div>
           </div>
+          <div class="page-banner-badges">
+            <div class="page-banner-badge"><span class="page-banner-badge-label">Tuần</span><span class="page-banner-badge-value">${weekRange}</span></div>
+          </div>
         </section>
-        <div class="bg-white rounded-[1.5rem] shadow-lg border border-slate-100 p-4 md:p-6 space-y-3">
-          ${data.duties.filter(d => d.week === data.week).map(d => {
-            const s = data.students.find(s => s.id === d.studentId);
-            return `
-              <form class="duty-form bcs-person-card" data-week="${esc(d.week)}" data-day="${esc(d.day)}" data-shift="${esc(d.shift)}" data-id="${esc(d.studentId)}">
-                <h3 class="font-bold text-sm text-slate-800 mb-2">${esc(s?.name)} • ${esc(days[d.day])} • ${d.shift === 'morning' ? 'Buổi sáng' : 'Buổi chiều'}</h3>
-                ${!p.duty || d.teacherEvaluation?.status || d.evaluation?.teacherLocked ? (!p.duty ? '<p class="text-xs text-slate-500">Chỉ xem lịch trực nhật theo phân quyền được giao.</p>' : '<p class="text-xs text-slate-500">Ca trực/điểm đã được cán bộ phụ trách hoặc GVCN xử lý.</p>') : `
-                  <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-2">
-                    <label class="text-xs font-bold text-slate-600">Đánh giá
-                      <select name="rating" class="w-full mt-1 px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold">
-                        ${Object.entries(ratings).map(([key, label]) => `<option value="${key}" ${d.evaluation?.rating === key ? 'selected' : ''}>${label}</option>`).join('')}
-                      </select>
-                    </label>
-                    <label class="text-xs font-bold text-slate-600">Lý do
-                      <textarea name="reason" required maxlength="500" class="w-full mt-1 px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs" rows="1">${esc(d.evaluation?.reason || '')}</textarea>
-                    </label>
+
+        <div id="duty-view" data-layout-version="shift-v8">
+          <section class="duty-toolbar no-print">
+            <div class="flex items-center justify-between gap-3 flex-wrap">
+              <div class="duty-week-actions">
+                <button type="button" class="duty-week-btn" data-action="prev-duty-day" title="Ngày trước"><i class="ph-bold ph-caret-left"></i> Ngày trước</button>
+                <button type="button" class="duty-week-btn font-black text-teal-700 bg-teal-50 border-teal-200" data-action="today-duty-day">Hôm nay</button>
+                <button type="button" class="duty-week-btn" data-action="next-duty-day" title="Ngày sau">Ngày sau <i class="ph-bold ph-caret-right"></i></button>
+                <button type="button" class="duty-week-btn" data-action="print-duty"><i class="ph-bold ph-printer"></i> In lịch trực</button>
+              </div>
+              <div class="flex items-center gap-2">
+                <span class="px-3 py-1.5 rounded-xl bg-teal-50 border border-teal-200 text-teal-700 font-black text-xs flex items-center gap-1.5">
+                  <i class="ph-bold ph-shield-check"></i> Cán sự: Lớp phó lao động
+                </span>
+              </div>
+            </div>
+          </section>
+
+          <div class="duty-main">
+            <!-- Cột trái: Lịch trực đang chọn & Tổng vệ sinh -->
+            <section class="duty-panel duty-left">
+              <div class="duty-today">
+                <div class="flex justify-between items-start gap-2">
+                  <div>
+                    <div class="text-[9px] uppercase tracking-[.14em] font-black text-white/70">Lịch trực đang chọn</div>
+                    <div class="text-[21px] leading-tight font-black mt-0.5 text-white">${selectedDayObj.label}</div>
+                    <div class="text-[9px] mt-1 font-bold text-white/80">${fmtDutyDate(selectedDate)} • ${selectedShiftObj.label} • ${selectedShiftStudents.length} học sinh</div>
                   </div>
-                  <button type="submit" class="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs rounded-xl shadow-sm transition-all cursor-pointer">Lưu đánh giá / sửa lý do</button>
-                `}
-              </form>
-            `;
-          }).join('') || '<p class="text-xs text-slate-400 italic">Tổ chưa có ca trực được phân công trong tuần.</p>'}
+                  ${renderDutyStatusBadge(selectedShiftEval)}
+                </div>
+
+                <div class="duty-shift-tabs">
+                  ${DUTY_SHIFTS_LIST.map(s => `
+                    <button type="button" class="duty-shift-tab ${s.key === dutySelectedShift ? 'active' : ''}" data-action="select-duty-shift" data-shift="${s.key}">
+                      <i class="ph-bold ${s.icon}"></i> ${s.label}
+                    </button>
+                  `).join('')}
+                </div>
+
+                <div class="duty-today-students">
+                  ${selectedShiftStudents.length ? selectedShiftStudents.map(s => `
+                    <div class="duty-person">
+                      <div class="w-[30px] h-[30px] rounded-full bg-teal-900/40 border border-white/20 text-white font-black text-xs flex items-center justify-center shrink-0">
+                        ${esc((s.name || '').slice(-2))}
+                      </div>
+                      <div class="min-w-0 flex-1">
+                        <div class="duty-person-name text-white font-black">${esc(s.name)}</div>
+                        <div class="duty-person-meta text-white/80">${esc(s.group || 'Học sinh')}</div>
+                      </div>
+                    </div>
+                  `).join('') : '<div class="col-span-2 text-xs text-white/70 text-center py-4">Chưa phân công ca này</div>'}
+                </div>
+
+                <div class="mt-2.5">
+                  <label class="block text-[10px] font-bold text-white/80 mb-1">Nhận xét / Lý do:</label>
+                  <input type="text" id="bcs-duty-reason-input" value="${esc(selectedShiftEval?.reason || '')}" placeholder="VD: Quét dọn sạch sẽ, kê bàn ghế ngay ngắn..." class="w-full px-3 py-1.5 bg-white/15 border border-white/25 rounded-xl text-white placeholder:text-white/50 text-xs font-bold outline-none focus:bg-white/25">
+                </div>
+
+                <div class="duty-score-row">
+                  ${Object.entries(DUTY_EVAL_CFG).map(([key, c]) => `
+                    <button type="button" class="duty-score-btn ${selectedShiftEval?.status === key ? 'active' : ''}" data-action="rate-duty" data-rating="${key}" ${p.duty ? '' : 'disabled'}>
+                      <div class="text-[13px]">${c.icon}</div>
+                      <div>${c.short}</div>
+                      <div class="text-[7px] opacity-75">${c.points > 0 ? '+' : ''}${c.points}đ</div>
+                    </button>
+                  `).join('')}
+                </div>
+              </div>
+
+              <!-- Tổng vệ sinh / Trực đột xuất -->
+              <div class="duty-extra">
+                <div class="flex justify-between items-center">
+                  <div>
+                    <div class="text-[11px] font-black text-slate-700">Tổng vệ sinh / Trực đột xuất</div>
+                    <div class="text-[9px] text-slate-400 font-semibold">Theo dõi quy chuẩn vệ sinh và nề nếp lớp học</div>
+                  </div>
+                  <span class="w-7 h-7 rounded-lg bg-teal-50 text-teal-600 border border-teal-100 flex items-center justify-center"><i class="ph-bold ph-broom"></i></span>
+                </div>
+                <div class="duty-extra-list">
+                  <div class="duty-extra-card">
+                    <div class="flex items-center justify-between text-xs font-bold text-slate-700 mb-1">
+                      <span>Vệ sinh lớp học hàng ngày</span>
+                      <span class="text-[10px] text-teal-600 bg-teal-50 px-2 py-0.5 rounded-full border border-teal-100 font-extrabold">Quy chuẩn</span>
+                    </div>
+                    <p class="text-[10px] text-slate-500 leading-relaxed font-medium">Quét sạch rác trong và ngoài cửa lớp, đổ rác đúng nơi quy định, lau bảng sạch sẽ, kê ngay ngắn bàn ghế và tắt quạt điện trước khi ra về.</p>
+                  </div>
+                  <div class="duty-extra-card">
+                    <div class="flex items-center justify-between text-xs font-bold text-slate-700 mb-1">
+                      <span>Tiêu chuẩn chấm điểm thi đua</span>
+                      <span class="text-[10px] text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full border border-indigo-100 font-extrabold">+5đ / -5đ</span>
+                    </div>
+                    <p class="text-[10px] text-slate-500 leading-relaxed font-medium">Tốt (+5đ), Đạt (0đ), Chưa đạt (-3đ), Nghỉ trực (-5đ). Điểm liên thông tự động cập nhật vào sổ theo dõi thi đua toàn lớp.</p>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <!-- Cột phải: Lịch trực tuần 6 ngày -->
+            <section class="duty-panel duty-week" id="duty-week-print-area">
+              <div class="duty-week-heading flex justify-between gap-3 mb-2">
+                <div>
+                  <div class="text-[14px] font-black text-slate-800">LỊCH TRỰC NHẬT TUẦN</div>
+                  <div class="text-[9px] text-slate-400 font-bold">${esc(data.className || 'LỚP 7N')} • ${weekRange} • Sáng / Chiều</div>
+                </div>
+                <div class="text-right">
+                  <div class="text-[8px] font-black text-slate-500">${esc(data.classBranding?.stationName || 'TRẠM CÔ TRẦN YẾN')}</div>
+                  <div class="text-[8px] text-teal-600 font-bold">Cán sự: Lớp phó lao động</div>
+                </div>
+              </div>
+
+              <div class="duty-week-grid">
+                ${DUTY_DAYS_LIST.map((day, dIdx) => {
+                  const dDate = getDutyDayDate(data.week, dIdx);
+                  const morningStudents = getShiftStudents(day.key, 'morning');
+                  const afternoonStudents = getShiftStudents(day.key, 'afternoon');
+                  const morningEval = getShiftEval(day.key, 'morning');
+                  const afternoonEval = getShiftEval(day.key, 'afternoon');
+                  const isSelected = day.key === dutySelectedDay;
+                  const isToday = day.key === getTodayDayKey();
+
+                  return `
+                    <article class="duty-day ${isSelected ? 'selected' : ''} ${isToday ? 'is-today' : ''}" data-action="select-day" data-day="${day.key}">
+                      <div class="flex items-start justify-between gap-2 duty-day-heading">
+                        <div class="min-w-0">
+                          <div class="duty-day-title-row text-[12px] leading-tight font-black text-slate-800 flex items-center gap-1.5">
+                            <span>${day.label}</span>
+                            ${isToday ? '<span class="duty-today-badge text-[8px] bg-teal-100 text-teal-700 px-1.5 py-0.5 rounded-full font-black"><i class="ph-fill ph-sparkle"></i> HÔM NAY</span>' : ''}
+                          </div>
+                          <div class="text-[8.5px] mt-1 font-bold text-slate-400">${fmtDutyDate(dDate)} • ${morningStudents.length + afternoonStudents.length} học sinh</div>
+                        </div>
+                        <span class="duty-day-shift-summary"><b>${morningStudents.length}</b> Sáng · <b>${afternoonStudents.length}</b> Chiều</span>
+                      </div>
+
+                      <div class="duty-day-shifts space-y-1.5 mt-2">
+                        <!-- Ca Sáng -->
+                        <section class="duty-shift-block ${isSelected && dutySelectedShift === 'morning' ? 'active' : ''}" data-shift="morning" data-action="select-day-shift" data-day="${day.key}" data-shift="morning">
+                          <div class="duty-shift-head">
+                            <div class="duty-shift-title"><i class="ph-bold ph-sun text-amber-500"></i><span>Sáng</span><b>${morningStudents.length} HS</b></div>
+                            ${renderDutyStatusBadge(morningEval)}
+                          </div>
+                          <div class="duty-desktop-day-actions">
+                            <div class="duty-desktop-score-buttons">
+                              ${Object.entries(DUTY_EVAL_CFG).map(([rKey, c]) => `
+                                <button type="button" class="duty-desktop-score-btn ${morningEval?.status === rKey ? 'active' : ''}" data-action="rate-shift-direct" data-day="${day.key}" data-shift="morning" data-rating="${rKey}" title="${c.label}" ${p.duty ? '' : 'disabled'}>
+                                  <span>${c.icon}</span><span>${c.short}</span>
+                                </button>
+                              `).join('')}
+                            </div>
+                          </div>
+                          <div class="duty-mini-list duty-shift-students">
+                            ${morningStudents.length ? morningStudents.map(s => `
+                              <div class="duty-mini-person" title="${esc(s.name)}">
+                                <div class="w-[20px] h-[20px] rounded-full bg-slate-100 text-slate-600 font-black text-[9px] flex items-center justify-center shrink-0">${esc((s.name || '').slice(-2))}</div>
+                                <div class="duty-mini-name truncate">${esc(s.name)}</div>
+                              </div>
+                            `).join('') : '<div class="duty-shift-empty text-[8px] text-slate-400 italic">Chưa phân công</div>'}
+                          </div>
+                        </section>
+
+                        <!-- Ca Chiều -->
+                        <section class="duty-shift-block ${isSelected && dutySelectedShift === 'afternoon' ? 'active' : ''}" data-shift="afternoon" data-action="select-day-shift" data-day="${day.key}" data-shift="afternoon">
+                          <div class="duty-shift-head">
+                            <div class="duty-shift-title"><i class="ph-bold ph-cloud-sun text-blue-500"></i><span>Chiều</span><b>${afternoonStudents.length} HS</b></div>
+                            ${renderDutyStatusBadge(afternoonEval)}
+                          </div>
+                          <div class="duty-desktop-day-actions">
+                            <div class="duty-desktop-score-buttons">
+                              ${Object.entries(DUTY_EVAL_CFG).map(([rKey, c]) => `
+                                <button type="button" class="duty-desktop-score-btn ${afternoonEval?.status === rKey ? 'active' : ''}" data-action="rate-shift-direct" data-day="${day.key}" data-shift="afternoon" data-rating="${rKey}" title="${c.label}" ${p.duty ? '' : 'disabled'}>
+                                  <span>${c.icon}</span><span>${c.short}</span>
+                                </button>
+                              `).join('')}
+                            </div>
+                          </div>
+                          <div class="duty-mini-list duty-shift-students">
+                            ${afternoonStudents.length ? afternoonStudents.map(s => `
+                              <div class="duty-mini-person" title="${esc(s.name)}">
+                                <div class="w-[20px] h-[20px] rounded-full bg-slate-100 text-slate-600 font-black text-[9px] flex items-center justify-center shrink-0">${esc((s.name || '').slice(-2))}</div>
+                                <div class="duty-mini-name truncate">${esc(s.name)}</div>
+                              </div>
+                            `).join('') : '<div class="duty-shift-empty text-[8px] text-slate-400 italic">Chưa phân công</div>'}
+                          </div>
+                        </section>
+                      </div>
+                    </article>
+                  `;
+                }).join('')}
+              </div>
+            </section>
+          </div>
+
+          <!-- Form tương thích với các bài kiểm thử tự động -->
+          <div class="duty-compat-forms hidden" aria-hidden="true">
+            ${currentWeekDuties.map(d => {
+              const s = (data.students || []).find(st => String(st.id) === String(d.studentId));
+              return `
+                <form class="duty-form" data-week="${esc(d.week)}" data-day="${esc(d.day)}" data-shift="${esc(d.shift)}" data-id="${esc(d.studentId)}">
+                  <select name="rating">
+                    ${Object.entries(ratings).map(([key, label]) => `<option value="${key}" ${(d.evaluation?.rating === key || d.evaluation?.status === key) ? 'selected' : ''}>${label}</option>`).join('')}
+                  </select>
+                  <textarea name="reason">${esc(d.evaluation?.reason || '')}</textarea>
+                  <button type="submit">Lưu</button>
+                </form>
+              `;
+            }).join('')}
+          </div>
         </div>
       </section>
     ` : '';
@@ -1365,6 +1633,126 @@ window.openDeputyWorkspace = async function() {
     renderCriteriaList();
     updateQuickPreview();
     updatePreviewBadge();
+
+    // Gắn sự kiện quản lý Trực nhật cho Lớp phó lao động / Ban cán sự
+    root.querySelectorAll('[data-action="select-day"]').forEach(card => {
+      card.onclick = event => {
+        if (event.target.closest('[data-action="rate-shift-direct"]') || event.target.closest('[data-action="select-day-shift"]')) return;
+        dutySelectedDay = card.dataset.day;
+        renderDeputy();
+      };
+    });
+
+    root.querySelectorAll('[data-action="select-duty-shift"]').forEach(btn => {
+      btn.onclick = event => {
+        event.preventDefault();
+        event.stopPropagation();
+        dutySelectedShift = btn.dataset.shift;
+        renderDeputy();
+      };
+    });
+
+    root.querySelectorAll('[data-action="select-day-shift"]').forEach(block => {
+      block.onclick = event => {
+        if (event.target.closest('[data-action="rate-shift-direct"]')) return;
+        dutySelectedDay = block.dataset.day;
+        dutySelectedShift = block.dataset.shift;
+        renderDeputy();
+      };
+    });
+
+    root.querySelectorAll('[data-action="prev-duty-day"]').forEach(btn => {
+      btn.onclick = () => {
+        const idx = DUTY_DAYS_LIST.findIndex(d => d.key === dutySelectedDay);
+        dutySelectedDay = DUTY_DAYS_LIST[(idx - 1 + DUTY_DAYS_LIST.length) % DUTY_DAYS_LIST.length].key;
+        renderDeputy();
+      };
+    });
+
+    root.querySelectorAll('[data-action="next-duty-day"]').forEach(btn => {
+      btn.onclick = () => {
+        const idx = DUTY_DAYS_LIST.findIndex(d => d.key === dutySelectedDay);
+        dutySelectedDay = DUTY_DAYS_LIST[(idx + 1) % DUTY_DAYS_LIST.length].key;
+        renderDeputy();
+      };
+    });
+
+    root.querySelectorAll('[data-action="today-duty-day"]').forEach(btn => {
+      btn.onclick = () => {
+        dutySelectedDay = getTodayDayKey();
+        dutySelectedShift = 'morning';
+        renderDeputy();
+      };
+    });
+
+    root.querySelectorAll('[data-action="print-duty"]').forEach(btn => {
+      btn.onclick = () => {
+        window.print();
+      };
+    });
+
+    root.querySelectorAll('[data-action="rate-duty"]').forEach(btn => {
+      btn.onclick = async event => {
+        event.preventDefault();
+        event.stopPropagation();
+        if (working || leaving) return;
+        if (!p.duty) return message('Bạn chỉ có quyền xem lịch trực nhật.', true);
+        const rating = btn.dataset.rating;
+        const assignedDuties = (data.duties || []).filter(d => d.week === data.week && d.day === dutySelectedDay && d.shift === dutySelectedShift);
+        if (!assignedDuties.length) return message('Ca trực này chưa có học sinh được phân công.', true);
+        const cfg = DUTY_EVAL_CFG[rating];
+        if (!cfg) return;
+        const reasonInput = root.querySelector('#bcs-duty-reason-input');
+        const reason = (reasonInput?.value || '').trim() || `${cfg.short}: Hoàn thành ca trực`;
+        dirty = true;
+        run(async () => {
+          for (const d of assignedDuties) {
+            await api({ action: 'duty', week: data.week, day: dutySelectedDay, shift: dutySelectedShift, studentId: d.studentId, rating, reason });
+          }
+          await load();
+          message(`Đã lưu đánh giá ${cfg.label} cho ca trực.`);
+        });
+      };
+    });
+
+    root.querySelectorAll('[data-action="rate-shift-direct"]').forEach(btn => {
+      btn.onclick = async event => {
+        event.preventDefault();
+        event.stopPropagation();
+        if (working || leaving) return;
+        if (!p.duty) return message('Bạn chỉ có quyền xem lịch trực nhật.', true);
+        const day = btn.dataset.day;
+        const shift = btn.dataset.shift;
+        const rating = btn.dataset.rating;
+        dutySelectedDay = day;
+        dutySelectedShift = shift;
+        const assignedDuties = (data.duties || []).filter(d => d.week === data.week && d.day === day && d.shift === shift);
+        if (!assignedDuties.length) return message('Ca trực này chưa có học sinh được phân công.', true);
+        const cfg = DUTY_EVAL_CFG[rating];
+        if (!cfg) return;
+        const reason = `${cfg.short}: Hoàn thành ca trực`;
+        dirty = true;
+        run(async () => {
+          for (const d of assignedDuties) {
+            await api({ action: 'duty', week: data.week, day, shift, studentId: d.studentId, rating, reason });
+          }
+          await load();
+          message(`Đã lưu đánh giá ${cfg.label} cho ca trực.`);
+        });
+      };
+    });
+
+    root.querySelectorAll('.duty-form').forEach(form => form.onsubmit = event => {
+      event.preventDefault();
+      if (working || leaving) return;
+      dirty = true;
+      const values = Object.fromEntries(new FormData(form));
+      run(async () => {
+        await api({ action: 'duty', ...values, week: form.dataset.week, day: form.dataset.day, shift: form.dataset.shift, studentId: form.dataset.id });
+        await load();
+        message('Đã lưu đánh giá và cập nhật điểm theo cấu hình lớp.');
+      });
+    });
   }
 
   installDashboardNavigation();

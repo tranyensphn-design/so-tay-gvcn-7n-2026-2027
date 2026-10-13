@@ -4343,6 +4343,7 @@ html[data-ui-density] button svg {
 <!-- KẾT THÚC ĐOẠN CẤU HÌNH FIREBASE -->
 <body>
     <div id="app" class="flex h-screen w-full bg-slate-100"></div>
+    <div id="modal-container" class="print:hidden"></div>
     <div id="toast-container"></div>
     <div id="timer-drawer-container"></div>
     <script src="runtime-config.js"></script>
@@ -11627,6 +11628,15 @@ html[data-ui-density] button svg {
                 : `<div class="p-12 text-center text-slate-500 font-medium">Tính năng đang được phát triển...</div>`;
 
             const isRightSidebar = state.settings.sidebarPosition === 'right';
+            // Đảm bảo modal-container tồn tại trực tiếp trên body để không bị app.innerHTML ghi đè làm mất modal
+            let persistentModalContainer = document.getElementById('modal-container');
+            if (!persistentModalContainer) {
+                persistentModalContainer = document.createElement('div');
+                persistentModalContainer.id = 'modal-container';
+                persistentModalContainer.className = 'print:hidden';
+                document.body.appendChild(persistentModalContainer);
+            }
+
             const backdropClass = window.mobileSidebarOpen ? "backdrop-open" : "hidden backdrop-closed";
             app.innerHTML = `
                 <div id="mobile-sidebar-backdrop" onclick="toggleMobileSidebar(false, event)" class="${backdropClass} fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-[999] lg:hidden transition-opacity cursor-pointer"></div>
@@ -11636,7 +11646,6 @@ html[data-ui-density] button svg {
                     <main class="flex-1 overflow-y-auto p-4 md:p-8 custom-scrollbar relative print:p-0 print:overflow-visible" id="main-content">
                         ${contentHtml}
                     </main>
-                    <div id="modal-container" class="print:hidden"></div>
                 </div>
                 ${isRightSidebar ? renderSidebar() : ''}
             `;
@@ -18502,11 +18511,11 @@ function getAssessmentLabel(sequence) {
                                                 ${state.students.map(s => `<option value="${s.id}" ${role.assignedStudentId == s.id ? 'selected' : ''}>${s.name} (${s.group})</option>`).join('')}
                                             </select>
                                             <!-- Nút Bật/Tắt -->
-                                            <button onclick="toggleOfficerRoleStatus('${role.key}')" class="px-4 py-2.5 rounded-xl text-xs font-bold transition-colors ${isEnabled ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200' : 'bg-slate-200 text-slate-600 hover:bg-slate-300'}">
+                                            <button type="button" onclick="toggleOfficerRoleStatus('${role.key}')" class="px-4 py-2.5 rounded-xl text-xs font-bold transition-colors ${isEnabled ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200' : 'bg-slate-200 text-slate-600 hover:bg-slate-300'}">
                                                 ${isEnabled ? 'Đang Bật' : 'Đã Tắt'}
                                             </button>
                                             <!-- Nút Tùy chỉnh quyền chi tiết -->
-                                            <button onclick="openEditRoleDetailModal('${role.key}')" class="permission-role-settings p-2.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl" title="Tùy chỉnh quyền chi tiết">
+                                            <button type="button" onclick="event.stopPropagation(); openEditRoleDetailModal('${role.key}')" class="permission-role-settings p-2.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl" title="Tùy chỉnh quyền chi tiết">
                                                 <i class="ph-bold ph-sliders text-base"></i>
                                             </button>
                                         </div>
@@ -18541,7 +18550,7 @@ function getAssessmentLabel(sequence) {
                                 <div class="text-[10px] font-black uppercase tracking-widest text-slate-500">Quản lý người dùng</div>
                                 <h4 class="font-black text-slate-800 mt-2">Mã học sinh và mật khẩu cán bộ lớp</h4>
                                 <p class="text-[11px] text-slate-500 font-medium mt-2 leading-relaxed">HS/PH dùng mã học sinh 5 số. Mỗi cán bộ lớp dùng mật khẩu riêng do GVCN cấp. Giáo viên vẫn dùng email và mật khẩu Firebase.</p>
-                                ${membership.role === 'gvcn' ? '<button type="button" onclick="openAccessManager()" class="mt-4 w-full h-11 rounded-xl bg-indigo-600 text-white text-xs font-black">QUẢN LÝ QUYỀN ĐĂNG NHẬP</button>' : ''}
+                                ${membership.role === 'gvcn' ? '<button type="button" onclick="event.stopPropagation(); openAccessManager()" class="mt-4 w-full h-11 rounded-xl bg-indigo-600 text-white text-xs font-black">QUẢN LÝ QUYỀN ĐĂNG NHẬP</button>' : ''}
                                 <div class="mt-4 p-3 rounded-xl bg-white border border-slate-200 text-[10px] text-slate-600 font-bold">Cấu hình một lần theo <b>DANG_NHAP_DON_GIAN.md</b>. Không nhập khóa quản trị vào trang web.</div>
                             </section>
                         </div>
@@ -19393,15 +19402,22 @@ function getAssessmentLabel(sequence) {
                 { id: 'thoi-khoa-bieu', label: 'Thời khóa biểu & Công việc tuần' },
                 { id: 'bao-cao', label: 'Sổ điểm / Sổ theo dõi' }
             ];
-            document.getElementById('modal-container').innerHTML = `
-                <div class="fixed inset-0 bg-slate-900/70 z-50 flex items-center justify-center p-4 backdrop-blur-sm animate-fade-in" id="edit-role-modal">
-                    <div class="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-xl overflow-hidden flex flex-col max-h-[90vh]">
+            let modalContainer = document.getElementById('modal-container');
+            if (!modalContainer) {
+                modalContainer = document.createElement('div');
+                modalContainer.id = 'modal-container';
+                modalContainer.className = 'print:hidden';
+                document.body.appendChild(modalContainer);
+            }
+            modalContainer.innerHTML = `
+                <div class="fixed inset-0 bg-slate-900/70 z-[12000] flex items-center justify-center p-4 backdrop-blur-sm animate-fade-in" id="edit-role-modal" onclick="if(event.target===this)closeModal('edit-role-modal')">
+                    <div class="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-xl overflow-hidden flex flex-col max-h-[90vh]" onclick="event.stopPropagation()">
                         <div class="bg-primary text-white p-6 flex justify-between items-center px-8">
                             <div>
                                 <h3 class="font-black text-xl flex items-center gap-2"><i class="ph-fill ph-sliders text-accent"></i> Tùy Chỉnh Quyền: ${role.title}</h3>
                                 <p class="text-xs text-indigo-200 mt-1">Nên giữ nguyên cấu hình khuyến nghị; chỉ mở thêm quyền khi thực sự cần</p>
                             </div>
-                            <button onclick="closeModal('edit-role-modal')" class="bg-white/10 p-2 rounded-full hover:bg-white/20"><i class="ph-bold ph-x text-lg"></i></button>
+                            <button type="button" onclick="closeModal('edit-role-modal')" class="bg-white/10 p-2 rounded-full hover:bg-white/20"><i class="ph-bold ph-x text-lg"></i></button>
                         </div>
                         <div class="p-8 space-y-6 overflow-y-auto custom-scrollbar flex-1 bg-slate-50 text-left text-sm">
                             <!-- Phạm vi -->
@@ -19449,8 +19465,8 @@ function getAssessmentLabel(sequence) {
                             </div>
                         </div>
                         <div class="p-6 bg-white border-t flex justify-end gap-3">
-                            <button onclick="closeModal('edit-role-modal')" class="px-6 py-3 bg-slate-100 rounded-xl font-bold text-slate-600 text-xs">HỦY</button>
-                            <button onclick="saveRoleDetailConfig('${role.key}')" class="px-8 py-3 bg-primary hover:bg-secondary text-white font-bold rounded-xl text-xs shadow-md">LƯU CẤU HÌNH QUYỀN</button>
+                            <button type="button" onclick="closeModal('edit-role-modal')" class="px-6 py-3 bg-slate-100 rounded-xl font-bold text-slate-600 text-xs cursor-pointer">HỦY</button>
+                            <button type="button" onclick="saveRoleDetailConfig('${role.key}')" class="px-8 py-3 bg-primary hover:bg-secondary text-white font-bold rounded-xl text-xs shadow-md cursor-pointer">LƯU CẤU HÌNH QUYỀN</button>
                         </div>
                     </div>
                 </div>

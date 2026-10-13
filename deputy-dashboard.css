@@ -433,3 +433,274 @@
     background: #ffffff;
     box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
 }
+
+/* =========================================================
+   DUTY / TRỰC NHẬT THEME - PHONG CÁCH CHUẨN GVCN
+   ========================================================= */
+#deputy-workspace #duty-view {
+    min-height: 610px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+#deputy-workspace .duty-main {
+    display: grid;
+    grid-template-columns: minmax(360px, .92fr) minmax(0, 1.8fr);
+    gap: 14px;
+    align-items: start;
+}
+
+#deputy-workspace .duty-panel {
+    border-radius: 22px;
+    border: 1px solid #e2e8f0;
+    background: #ffffff;
+    box-shadow: 0 14px 32px -24px rgba(15, 23, 42, 0.18);
+    overflow: hidden;
+}
+
+#deputy-workspace .duty-left {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 14px;
+}
+
+#deputy-workspace .duty-today {
+    border-radius: 20px;
+    padding: 16px;
+    background: radial-gradient(circle at 86% 12%, rgba(255, 255, 255, 0.22), transparent 28%),
+                linear-gradient(135deg, #0f766e, #14b8a6);
+    color: #ffffff;
+    box-shadow: 0 16px 32px -20px rgba(13, 148, 136, 0.65);
+}
+
+#deputy-workspace .duty-shift-tabs {
+    display: flex;
+    gap: 8px;
+    margin-top: 12px;
+}
+
+#deputy-workspace .duty-shift-tab {
+    flex: 1;
+    min-height: 40px;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.22);
+    background: rgba(255, 255, 255, 0.16);
+    color: #ffffff;
+    font-size: 11px;
+    font-weight: 800;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+#deputy-workspace .duty-shift-tab:hover {
+    background: rgba(255, 255, 255, 0.25);
+}
+
+#deputy-workspace .duty-shift-tab.active {
+    background: #ffffff;
+    color: #0f766e;
+    font-weight: 900;
+    border-color: #ffffff;
+    box-shadow: 0 8px 18px -10px rgba(15, 23, 42, 0.35);
+}
+
+#deputy-workspace .duty-today-students {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    margin-top: 12px;
+    max-height: 190px;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    padding-right: 2px;
+}
+
+#deputy-workspace .duty-person {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    min-height: 44px;
+    border-radius: 14px;
+    padding: 8px 10px;
+    background: rgba(255, 255, 255, 0.16);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+#deputy-workspace .duty-person-name {
+    min-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    font-size: 11px;
+    line-height: 1.25;
+    font-weight: 900;
+}
+
+#deputy-workspace .duty-person-meta {
+    margin-top: 2px;
+    font-size: 9px;
+    font-weight: 800;
+    color: rgba(255, 255, 255, 0.8);
+}
+
+#deputy-workspace .duty-score-row {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 6px;
+    margin-top: 14px;
+}
+
+#deputy-workspace .duty-score-btn {
+    min-height: 52px;
+    padding: 6px 4px;
+    border-radius: 14px;
+    border: 1px solid rgba(255, 255, 255, 0.22);
+    background: rgba(255, 255, 255, 0.15);
+    color: #ffffff;
+    font-size: 9.5px;
+    line-height: 1.2;
+    font-weight: 900;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+#deputy-workspace .duty-score-btn:hover {
+    background: rgba(255, 255, 255, 0.25);
+    transform: translateY(-1px);
+}
+
+#deputy-workspace .duty-score-btn.active {
+    background: #ffffff;
+    color: #0f766e;
+    border-color: #ffffff;
+    box-shadow: 0 10px 22px -12px rgba(15, 23, 42, 0.45);
+    transform: scale(1.02);
+}
+
+#deputy-workspace .duty-extra {
+    border-radius: 18px;
+    border: 1px solid #e2e8f0;
+    background: #f8fafc;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+#deputy-workspace .duty-extra-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: 180px;
+    overflow-y: auto;
+    scrollbar-width: thin;
+}
+
+#deputy-workspace .duty-extra-card {
+    border-radius: 14px;
+    border: 1px solid #e2e8f0;
+    background: #ffffff;
+    padding: 10px 12px;
+    transition: all 0.15s ease;
+}
+
+#deputy-workspace .duty-extra-card:hover {
+    border-color: #cbd5e1;
+    box-shadow: 0 4px 12px -4px rgba(15, 23, 42, 0.08);
+}
+
+#deputy-workspace .duty-week {
+    display: flex;
+    flex-direction: column;
+    padding: 14px;
+}
+
+#deputy-workspace .duty-week-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-rows: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+}
+
+#deputy-workspace .duty-day {
+    min-width: 0;
+    border-radius: 18px;
+    border: 1.5px solid #e2e8f0;
+    background: linear-gradient(180deg, #ffffff, #fbfdff);
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    transition: all 0.15s ease;
+}
+
+#deputy-workspace .duty-day:hover {
+    border-color: #99f6e4;
+    box-shadow: 0 8px 24px -16px rgba(13, 148, 136, 0.35);
+}
+
+#deputy-workspace .duty-day.selected {
+    border-color: #0d9488;
+    box-shadow: 0 0 0 2px rgba(13, 148, 136, 0.18);
+    background: #ffffff;
+}
+
+#deputy-workspace .duty-mini-list {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px;
+    margin-top: 6px;
+}
+
+#deputy-workspace .duty-mini-person {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    border-radius: 10px;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    padding: 5px 7px;
+    min-width: 0;
+}
+
+#deputy-workspace .duty-mini-name {
+    font-size: 10px;
+    font-weight: 800;
+    color: #334155;
+    line-height: 1.2;
+}
+
+@media (max-width: 1100px) {
+    #deputy-workspace .duty-main {
+        grid-template-columns: 1fr;
+    }
+    #deputy-workspace .duty-week-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 640px) {
+    #deputy-workspace .duty-week-grid {
+        grid-template-columns: 1fr;
+    }
+    #deputy-workspace .duty-score-row {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    #deputy-workspace .duty-today-students {
+        grid-template-columns: 1fr;
+    }
+    #deputy-workspace .duty-mini-list {
+        grid-template-columns: 1fr;
+    }
+}

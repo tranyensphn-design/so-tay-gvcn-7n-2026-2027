@@ -163,9 +163,14 @@
     if (window.cloudMembership?.role !== 'gvcn') return;
     if (busy) return;
     customPasswordsSupported = false;
-    const host = document.getElementById('modal-container');
-    if (!host) return;
-    host.innerHTML = `<div id="access-manager" role="dialog" aria-modal="true" aria-labelledby="access-title">
+    let host = document.getElementById('modal-container');
+    if (!host) {
+      host = document.createElement('div');
+      host.id = 'modal-container';
+      host.className = 'print:hidden';
+      document.body.appendChild(host);
+    }
+    host.innerHTML = `<div id="access-manager" role="dialog" aria-modal="true" aria-labelledby="access-title" onclick="if(event.target===this){document.getElementById('modal-container').innerHTML='';}">
       <style>
         #access-manager { position:fixed; inset:0; z-index:12000; display:flex; align-items:center; justify-content:center; padding:16px; background:#0f172aaa; }
         #access-manager, #access-manager * {box-sizing:border-box;}
@@ -203,7 +208,7 @@
           #access-manager td[data-label]::before {content:attr(data-label);display:block;margin-bottom:6px;font-size:11px;font-weight:800;color:#64748b;}
         }
       </style>
-      <section class="access-panel">
+      <section class="access-panel" onclick="event.stopPropagation()">
         <header style="display:flex;justify-content:space-between;gap:12px"><h2 id="access-title">Quản lý quyền đăng nhập</h2><button data-action="close" aria-label="Đóng quản lý đăng nhập">Đóng</button></header>
         <p>HS/PH: mã học sinh 5 số. Ban cán sự: mật khẩu riêng. Chọn cán bộ lớp ở phần Phân quyền trước khi cấp mật khẩu.</p>
         <p><strong>Giáo viên tự đặt mật khẩu:</strong> bấm Cấp/Đổi mật khẩu riêng tại đúng học sinh, nhập hai lần rồi lưu. Không tự sinh mật khẩu khi bấm nút. <small>Bản tự đặt mật khẩu 02.09.2026 · v3</small></p>
