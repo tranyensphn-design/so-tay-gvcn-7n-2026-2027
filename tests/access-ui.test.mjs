@@ -35,8 +35,13 @@ function harness(options = {}) {
   const row = { id: '1', name: options.name || 'Test Officer', officer: options.officer ?? 'Class leader',
     code: '12345', portal: 'active', officerAccess: 'missing' };
   let saved = false;
+  const docListeners = new Map();
   const context = {
-    document: { getElementById: get },
+    document: {
+      getElementById: get,
+      addEventListener(type, handler) { docListeners.set(type, handler); },
+      removeEventListener(type, handler) { if (docListeners.get(type) === handler) docListeners.delete(type); }
+    },
     confirm: message => { confirmations.push(message); return options.confirm !== false; },
     window: {
       cloudMembership: { role: options.role || 'gvcn' }, simpleLoginEnabled: false,
@@ -44,9 +49,9 @@ function harness(options = {}) {
         calls.push(structuredClone(body));
         if (body.action === 'list') {
           if (saved && options.failRefresh) throw new Error('Refresh failed');
-          return { students: [row], features: { customOfficerPasswords: options.supported !== false } };
+          return { students: [row], features: { customOfficerPasswords: options.supported !== false, teacherPasswordAction: 'set-officer-password' } };
         }
-        if (body.action === 'password') {
+        if (body.action === 'password' || body.action === 'set-officer-password') {
           if (options.save) await options.save(body);
           saved = true;
           return options.response || { passwordSet: true };
@@ -66,8 +71,9 @@ function harness(options = {}) {
     get('access-new-password').value = password; get('access-confirm-password').value = repeat;
   };
   const submit = () => form.listeners.get('submit')({ preventDefault() {}, currentTarget: form });
-  return { context, get, calls, confirmations, controls, click, fill, submit,
-    open: () => context.window.openAccessManager(), writes: () => calls.filter(c => c.action === 'password') };
+  return { context, get, calls, confirmations, controls, click, fill, submit, docListeners,
+    triggerKeydown: key => { const fn = docListeners.get('keydown'); if (fn) fn({ key }); },
+    open: () => context.window.openAccessManager(), writes: () => calls.filter(c => c.action === 'password' || c.action === 'set-officer-password') };
 }
 
 test('opening the custom-password form selects the right officer, masks both inputs and escapes the name', async () => {
@@ -94,7 +100,7 @@ test('mismatched confirmation and invalid lengths/whitespace do not send a passw
 
 test('confirmed password is sent only for the selected officer and cleared after success without echo', async () => {
   const h = harness(); await h.open(); await h.click('password'); h.fill(); await h.submit();
-  assert.deepEqual(h.writes(), [{ action: 'password', kind: 'bcs', studentId: '1', password: 'Test7N' }]);
+  assert.deepEqual(h.writes(), [{ action: 'set-officer-password', kind: 'bcs', studentId: '1', password: 'Test7N' }]);
   assert.equal(h.get('access-new-password').value, '');
   assert.equal(h.get('access-confirm-password').value, '');
   assert.equal(h.get('access-password-panel').innerHTML, '');
@@ -113,6 +119,36 @@ test('cancel and close discard password fields without writing', async () => {
     assert.equal(h.get('access-confirm-password').value, '');
     assert.equal(h.get('access-password-panel').innerHTML, '');
   }
+});
+
+test('closing access manager via closeAccessManager, backdrop, or Escape clears the modal container', async () => {
+  const h1 = harness();
+  await h1.open();
+  h1.get('modal-container').innerHTML = '<div id="access-manager">...</div>';
+  assert.notEqual(h1.get('modal-container').innerHTML, '');
+  h1.context.window.closeAccessManager();
+  assert.equal(h1.get('modal-container').innerHTML, '');
+
+  const h2 = harness();
+  await h2.open();
+  h2.get('modal-container').innerHTML = '<div id="access-manager">...</div>';
+  await h2.get('access-manager').listeners.get('click')({ target: { id: 'access-manager' } });
+  assert.equal(h2.get('modal-container').innerHTML, '');
+
+  const h3 = harness();
+  await h3.open();
+  h3.get('modal-container').innerHTML = '<div id="access-manager">...</div>';
+  h3.triggerKeydown('Escape');
+  assert.equal(h3.get('modal-container').innerHTML, '');
+});
+
+test('modal panel does not block event propagation and close button has direct handler', async () => {
+  const h = harness();
+  await h.open();
+  const modalHtml = h.get('modal-container').innerHTML;
+  assert(!modalHtml.includes('event.stopPropagation()'), 'access-panel must not stop event propagation');
+  assert.match(modalHtml, /onclick="window\.closeAccessManager\(\)"/);
+  assert.match(modalHtml, /data-action="close"/);
 });
 
 test('declining the save confirmation preserves the existing credential', async () => {

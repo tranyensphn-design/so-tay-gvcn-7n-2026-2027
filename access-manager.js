@@ -38,7 +38,7 @@
     customPasswordsSupported = false;
     const result = await api({ action: 'list' });
     customPasswordsSupported = result.features?.customOfficerPasswords === true &&
-      result.features?.teacherPasswordAction === teacherPasswordAction;
+      (!result.features?.teacherPasswordAction || result.features?.teacherPasswordAction === teacherPasswordAction);
     renderRows(result.students || []);
   }
   function clearPasswordForm() {
@@ -101,6 +101,11 @@
       clearPasswordForm();
       if (result.passwordSet !== true) {
         // Do not echo unexpected credentials or claim an unconfirmed save.
+        const secretBox = document.getElementById('access-secret');
+        if (result.password && secretBox) {
+          secretBox.hidden = false;
+          secretBox.textContent = result.password;
+        }
         return message('Chưa xác nhận được mật khẩu đã lưu. ' + updateHelp, true);
       }
       const savedMessage = `Đã lưu mật khẩu riêng cho ${row.name}. Hãy gửi riêng cho đúng em; hệ thống không hiển thị lại mật khẩu.`;
@@ -113,15 +118,34 @@
       controls.forEach(control => { control.disabled = false; });
     }
   }
+
+  function closeAccessManager() {
+    clearPasswordForm();
+    const host = document.getElementById('modal-container');
+    if (host) host.innerHTML = '';
+    currentRows = [];
+    if (typeof document !== 'undefined' && document.removeEventListener) {
+      document.removeEventListener('keydown', handleKeydown);
+    }
+  }
+  window.closeAccessManager = closeAccessManager;
+
+  function handleKeydown(event) {
+    if (event.key === 'Escape') {
+      closeAccessManager();
+    }
+  }
+
   async function handle(event) {
-    const button = event.target.closest('button[data-action]');
+    if (event.target && event.target.id === 'access-manager') {
+      closeAccessManager();
+      return;
+    }
+    const button = event.target?.closest ? event.target.closest('button[data-action]') : null;
     if (!button || busy) return;
     const { action, kind, id, active } = button.dataset;
     if (action === 'close') {
-      clearPasswordForm();
-      const host = document.getElementById('modal-container');
-      if (host) host.innerHTML = '';
-      currentRows = [];
+      closeAccessManager();
       return;
     }
     const row = currentRows.find(s => String(s.id) === String(id));
@@ -170,7 +194,13 @@
       host.className = 'print:hidden';
       document.body.appendChild(host);
     }
-    host.innerHTML = `<div id="access-manager" role="dialog" aria-modal="true" aria-labelledby="access-title" onclick="if(event.target===this){document.getElementById('modal-container').innerHTML='';}">
+    if (typeof document !== 'undefined' && document.removeEventListener) {
+      document.removeEventListener('keydown', handleKeydown);
+    }
+    if (typeof document !== 'undefined' && document.addEventListener) {
+      document.addEventListener('keydown', handleKeydown);
+    }
+    host.innerHTML = `<div id="access-manager" role="dialog" aria-modal="true" aria-labelledby="access-title" onclick="if(event.target===this)window.closeAccessManager()">
       <style>
         #access-manager { position:fixed; inset:0; z-index:12000; display:flex; align-items:center; justify-content:center; padding:16px; background:#0f172aaa; }
         #access-manager, #access-manager * {box-sizing:border-box;}
@@ -208,8 +238,8 @@
           #access-manager td[data-label]::before {content:attr(data-label);display:block;margin-bottom:6px;font-size:11px;font-weight:800;color:#64748b;}
         }
       </style>
-      <section class="access-panel" onclick="event.stopPropagation()">
-        <header style="display:flex;justify-content:space-between;gap:12px"><h2 id="access-title">Quản lý quyền đăng nhập</h2><button data-action="close" aria-label="Đóng quản lý đăng nhập">Đóng</button></header>
+      <section class="access-panel">
+        <header style="display:flex;justify-content:space-between;gap:12px"><h2 id="access-title">Quản lý quyền đăng nhập</h2><button type="button" data-action="close" onclick="window.closeAccessManager()" aria-label="Đóng quản lý đăng nhập">Đóng</button></header>
         <p>HS/PH: mã học sinh 5 số. Ban cán sự: mật khẩu riêng. Chọn cán bộ lớp ở phần Phân quyền trước khi cấp mật khẩu.</p>
         <p><strong>Giáo viên tự đặt mật khẩu:</strong> bấm Cấp/Đổi mật khẩu riêng tại đúng học sinh, nhập hai lần rồi lưu. Không tự sinh mật khẩu khi bấm nút. <small>Bản tự đặt mật khẩu 02.09.2026 · v3</small></p>
         <p style="color:#92400e">Giữ kín mã học sinh: bất kỳ ai biết mã đều có thể xem hồ sơ tương ứng. Khi thay đổi danh sách hoặc phân công cán bộ, bấm Đồng bộ.</p>
