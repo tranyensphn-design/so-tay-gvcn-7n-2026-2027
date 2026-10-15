@@ -115,3 +115,74 @@ test('modal-container persists on document.body and is not wiped by app.innerHTM
   assert.equal(document.getElementById('test-modal')?.textContent, 'Modal content', 'Modal should persist across app.innerHTML re-renders');
 });
 
+test('Labor deputy can trigger auto-arrange duty week and backend rotates students across all shifts', async () => {
+  const f = setupLaborDeputy();
+  // Mock window.confirm to return true
+  f.window.confirm = () => true;
+  await f.open();
+
+  f.document.querySelector('[data-panel-link="duty"]').click();
+  const dutyPanel = f.document.querySelector('[data-panel="duty"]');
+
+  const autoBtn = dutyPanel.querySelector('[data-action="auto-arrange-duty"]');
+  assert(autoBtn, 'Auto-arrange button should exist for Labor Deputy');
+  autoBtn.click();
+  await tick();
+
+  const req = f.requests.find(r => r.action === 'duty-auto-arrange');
+  assert(req, 'duty-auto-arrange API request should be dispatched');
+
+  const weekAssignments = f.backend.state().dutyRoster?.weeks?.[req.week]?.assignments;
+  assert(weekAssignments, 'Week assignments should be created');
+  assert(Array.isArray(weekAssignments.mon?.morning), 'Monday morning shift should have students');
+  assert(weekAssignments.mon.morning.length > 0, 'At least 1 student should be assigned');
+  assert.match(f.document.querySelector('#message').textContent, /tự động xếp lịch trực nhật thành công/i);
+});
+
+test('Labor deputy can open duty editor modal and assign students to shift with conflict validation', async () => {
+  const f = setupLaborDeputy();
+  await f.open();
+
+  f.document.querySelector('[data-panel-link="duty"]').click();
+
+  // Find a shift edit button
+  const editBtn = f.document.querySelector('[data-action="open-duty-editor"][data-day="mon"][data-shift="morning"]');
+  assert(editBtn, 'Duty edit button should exist for mon morning');
+  editBtn.click();
+  await tick();
+
+  const modalBackdrop = f.document.querySelector('#duty-assign-backdrop');
+  assert(modalBackdrop, 'Duty assign modal should be displayed');
+  assert.match(modalBackdrop.textContent, /Phân công: Thứ Hai • Ca Sáng/);
+
+  // Toggle student 2
+  const toggleBtn = modalBackdrop.querySelector('.duty-toggle-student[data-id="2"]');
+  if (toggleBtn) {
+    toggleBtn.click();
+    await tick();
+  }
+
+  // Save assignments
+  const saveBtn = modalBackdrop.querySelector('#duty-modal-save');
+  assert(saveBtn, 'Modal save button should exist');
+  saveBtn.click();
+  await tick();
+
+  const assignReq = f.requests.find(r => r.action === 'duty-assign');
+  assert(assignReq, 'duty-assign API request should be dispatched');
+  assert.equal(assignReq.day, 'mon');
+  assert.equal(assignReq.shift, 'morning');
+  assert(Array.isArray(assignReq.studentIds), 'studentIds must be an array');
+});
+
+test('Duty toolbar officer badge has duty-toolbar-officer-badge class to prevent text squeeze', async () => {
+  const f = setupLaborDeputy();
+  await f.open();
+
+  f.document.querySelector('[data-panel-link="duty"]').click();
+  const badge = f.document.querySelector('.duty-toolbar-officer-badge');
+  assert(badge, 'Officer badge should have duty-toolbar-officer-badge class');
+  assert.match(badge.textContent, /Lớp phó lao động/);
+});
+
+

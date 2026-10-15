@@ -24,6 +24,39 @@ export function weekOf(date) {
   d.setUTCDate(d.getUTCDate() - (d.getUTCDay() + 6) % 7);
   return d.toISOString().slice(0, 10);
 }
+export function buildDutyAssignments(week, students = []) {
+  const r = {};
+  DAYS.forEach(d => { r[d] = { morning: [], afternoon: [] }; });
+  if (!students.length) return r;
+
+  const count = students.length;
+  const weeklySlots = Math.min(count, Math.min(30, Math.max(24, Math.ceil(count / 2))));
+  const weekDate = new Date(`${week}T00:00:00Z`);
+  const baseDate = new Date('2026-01-05T00:00:00Z');
+  const weekNo = Math.max(0, Math.floor((weekDate - baseDate) / (7 * 86400000)));
+
+  const offset = ((weekNo * weeklySlots) % count + count) % count;
+  const rotated = students.slice(offset).concat(students.slice(0, offset));
+  const selected = rotated.slice(0, weeklySlots);
+
+  const base = Math.floor(weeklySlots / DAYS.length);
+  const extra = weeklySlots % DAYS.length;
+  const extraStart = ((weekNo % DAYS.length) + DAYS.length) % DAYS.length;
+  let cursor = 0;
+
+  DAYS.forEach((day, dayIndex) => {
+    const relative = (dayIndex - extraStart + DAYS.length) % DAYS.length;
+    const dayCount = base + (relative < extra ? 1 : 0);
+    const morningGetsOdd = ((weekNo + dayIndex) % 2 === 0);
+    const morningCount = Math.floor(dayCount / 2) + ((dayCount % 2 && morningGetsOdd) ? 1 : 0);
+    const afternoonCount = dayCount - morningCount;
+    r[day].morning = selected.slice(cursor, cursor + morningCount).map(s => String(s.id));
+    cursor += morningCount;
+    r[day].afternoon = selected.slice(cursor, cursor + afternoonCount).map(s => String(s.id));
+    cursor += afternoonCount;
+  });
+  return r;
+}
 export function applyDelta(student, points, history) {
   const before = Number(student.stars) || 0;
   student.points = (Number(student.points) || 0) + points;
@@ -112,13 +145,39 @@ export function createDeputyService({ db, auth, appId, classId, clock = Date.now
         scoreEdit: !teacher && tabs.includes('tich-diem') && (!officer || policy.actions?.edit === true),
         points: !teacher && tabs.includes('tich-diem') && (!officer || policy.actions?.add === true),
         duty: !teacher && tabs.includes('truc-nhat') && (!officer || policy.actions?.add === true),
+        dutyManage: !teacher && tabs.includes('truc-nhat') && Boolean(officer && (policy?.key === 'lop-pho-lao-dong' || /lao[-_ ]*động/i.test(policy?.title || '')) && policy?.actions?.add === true),
         attendance: officer && tabs.includes('diem-danh') && categories.includes('Chuyên cần') && policy.actions?.add === true,
         grades: officer && tabs.includes('bao-cao') && policy.actions?.gradeEntry === true && state.gradeSettings?.allowOfficerGradeEntry !== false && state.gradeSettings?.allowMonitorEntry !== false,
         directScore: true,
         categories
       };
       if (input.action === 'view') {
-
+        const viewWeek = typeof input.week === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(input.week) ? input.week : weekOf(today);
+        if (state.students?.length && (!state.dutyRoster?.weeks?.[viewWeek] || !Object.keys(state.dutyRoster.weeks[viewWeek]?.assignments || {}).length)) {
+          state.dutyRoster = state.dutyRoster || { settings: { linkPoints: true }, weeks: {} };
+          state.dutyRoster.weeks = state.dutyRoster.weeks || {};
+          const existingWeek = state.dutyRoster.weeks[viewWeek];
+          if (!existingWeek || !Object.keys(existingWeek.assignments || {}).length) {
+            state.dutyRoster.weeks[viewWeek] = {
+              assignments: buildDutyAssignments(viewWeek, state.students),
+              evaluations: existingWeek?.evaluations || {
+                mon: { morning: null, afternoon: null },
+                tue: { morning: null, afternoon: null },
+                wed: { morning: null, afternoon: null },
+                thu: { morning: null, afternoon: null },
+                fri: { morning: null, afternoon: null },
+                sat: { morning: null, afternoon: null }
+              },
+              deputyEvaluations: existingWeek?.deputyEvaluations || {},
+              createdAt: existingWeek?.createdAt || stamp,
+              updatedAt: stamp,
+              updatedBy: actor.uid
+            };
+            const nextScoreRevision = (Number(ss.data()?.scoreRevision) || 0) + 1;
+            tx.update(stateRef, { state, scoreRevision: nextScoreRevision, updatedAt: stamp, updatedBy: actor.uid });
+            tx.set(cls.collection('permissionSignals').doc('current'), { revision: nextScoreRevision, updatedAt: stamp });
+          }
+        }
         const projection = teacher ? {} : projectGroup(state, groupId);
         if (permissions.grades) {
           const visibleIds = new Set(projection.students.map(s => s.id));
@@ -148,7 +207,7 @@ export function createDeputyService({ db, auth, appId, classId, clock = Date.now
           },
           selectedRoleKey: policy?.key || '',
           availableRoles: roles.filter(usable).map(r => ({key:r.key,title:r.title,scope:(r.scope === 'group' || /^to-truong/.test(r.key || '')) ? 'group' : 'all',groupName:r.groupName || ''})),
-          role: member.role, title: teacher ? 'Điểm thi đua' : groupId ? `Tổ của tôi • ${groupId}` : 'Ban cán sự • Toàn lớp', today, week: weekOf(today), permissions,
+          role: member.role, title: teacher ? 'Điểm thi đua' : groupId ? `Tổ của tôi • ${groupId}` : 'Ban cán sự • Toàn lớp', today, week: viewWeek, permissions,
           identity: teacher ? null : {studentId:String(assigned.id), name:assigned.name || '', title:policy?.title || `Tổ phó ${groupId}`},
           ...projection };
       }
@@ -174,6 +233,90 @@ export function createDeputyService({ db, auth, appId, classId, clock = Date.now
         tx.set(cls.collection('studentViews').doc(String(student.id)), {state:studentView(state,student), updatedAt:stamp, updatedBy:actor.uid});
         tx.set(receiptRef, {actor:actor.uid, studentId:String(student.id), subjectId:input.subjectId, semester:input.semester, sequence:Number(input.sequence), score:input.score, at:stamp});
         return {saved:true, scoreRevision: nextScoreRevision};
+      }
+      if (input.action === 'duty-auto-arrange') {
+        if (!permissions.dutyManage) fail('Chỉ Lớp phó lao động được xếp lịch trực nhật toàn lớp.');
+        const targetWeek = typeof input.week === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(input.week) ? input.week : weekOf(today);
+        if (state.weeklyCompetitionArchives?.[targetWeek] || (state.weeklyCompetition?.start && targetWeek < state.weeklyCompetition.start)) {
+          fail('Tuần này đã chốt, không thể thay đổi lịch trực.');
+        }
+        const assignments = buildDutyAssignments(targetWeek, state.students || []);
+        state.dutyRoster = state.dutyRoster || { settings: { linkPoints: true }, weeks: {} };
+        state.dutyRoster.weeks = state.dutyRoster.weeks || {};
+        state.dutyRoster.weeks[targetWeek] = {
+          assignments,
+          evaluations: {
+            mon: { morning: null, afternoon: null },
+            tue: { morning: null, afternoon: null },
+            wed: { morning: null, afternoon: null },
+            thu: { morning: null, afternoon: null },
+            fri: { morning: null, afternoon: null },
+            sat: { morning: null, afternoon: null }
+          },
+          deputyEvaluations: {},
+          createdAt: state.dutyRoster.weeks[targetWeek]?.createdAt || stamp,
+          updatedAt: stamp,
+          updatedBy: actor.uid
+        };
+        const nextScoreRevision = (Number(ss.data()?.scoreRevision) || 0) + 1;
+        tx.update(stateRef, { state, scoreRevision: nextScoreRevision, updatedAt: stamp, updatedBy: actor.uid });
+        tx.set(cls.collection('permissionSignals').doc('current'), { revision: nextScoreRevision, updatedAt: stamp });
+        tx.set(cls.collection('auditLogs').doc(), {
+          actorUid: actor.uid, actorRole: member.role,
+          action: 'deputy.duty-auto-arrange', createdAt: stamp, summary: `Xếp lịch trực nhật tự động tuần ${targetWeek}`, level: 'info'
+        });
+        return { saved: true, week: targetWeek, assignments, scoreRevision: nextScoreRevision };
+      }
+      if (input.action === 'duty-assign') {
+        if (!permissions.dutyManage) fail('Chỉ Lớp phó lao động được phân công trực nhật.');
+        const targetWeek = typeof input.week === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(input.week) ? input.week : weekOf(today);
+        if (state.weeklyCompetitionArchives?.[targetWeek] || (state.weeklyCompetition?.start && targetWeek < state.weeklyCompetition.start)) {
+          fail('Tuần này đã chốt, không thể thay đổi lịch trực.');
+        }
+        const { day, shift } = input;
+        if (!DAYS.includes(day) || !['morning', 'afternoon'].includes(shift)) {
+          throw new AccessError(400, 'Ca trực không hợp lệ.');
+        }
+        if (!Array.isArray(input.studentIds)) {
+          throw new AccessError(400, 'Danh sách học sinh không hợp lệ.');
+        }
+        const chosen = [...new Set(input.studentIds.map(String))];
+        const allStudents = state.students || [];
+        for (const id of chosen) {
+          if (!allStudents.some(s => String(s.id) === id)) {
+            throw new AccessError(400, 'Tồn tại học sinh không có trong lớp.');
+          }
+        }
+        const weekRoster = (state.dutyRoster ||= { settings: { linkPoints: true }, weeks: {} }).weeks[targetWeek] ||= {
+          assignments: {}, evaluations: {}, deputyEvaluations: {}, createdAt: stamp, updatedAt: stamp
+        };
+        weekRoster.assignments ||= {};
+        const dayNames = { mon:'Thứ Hai', tue:'Thứ Ba', wed:'Thứ Tư', thu:'Thứ Năm', fri:'Thứ Sáu', sat:'Thứ Bảy' };
+        const shiftNames = { morning:'Sáng', afternoon:'Chiều' };
+        for (const [d, shifts] of Object.entries(weekRoster.assignments)) {
+          for (const [s, ids] of Object.entries(shifts || {})) {
+            if (d === day && s === shift) continue;
+            if (!Array.isArray(ids)) continue;
+            const conflictId = chosen.find(id => ids.map(String).includes(id));
+            if (conflictId) {
+              const studentObj = allStudents.find(st => String(st.id) === conflictId);
+              fail(`Không thể lưu vì học sinh "${studentObj?.name || conflictId}" đã có lịch ${dayNames[d] || d} • ${shiftNames[s] || s}. Mỗi học sinh chỉ trực 1 ca/tuần.`);
+            }
+          }
+        }
+        weekRoster.assignments[day] ||= { morning: [], afternoon: [] };
+        weekRoster.assignments[day][shift] = chosen;
+        if (weekRoster.evaluations?.[day]?.[shift]) weekRoster.evaluations[day][shift] = null;
+        weekRoster.updatedAt = stamp;
+        weekRoster.updatedBy = actor.uid;
+        const nextScoreRevision = (Number(ss.data()?.scoreRevision) || 0) + 1;
+        tx.update(stateRef, { state, scoreRevision: nextScoreRevision, updatedAt: stamp, updatedBy: actor.uid });
+        tx.set(cls.collection('permissionSignals').doc('current'), { revision: nextScoreRevision, updatedAt: stamp });
+        tx.set(cls.collection('auditLogs').doc(), {
+          actorUid: actor.uid, actorRole: member.role,
+          action: 'deputy.duty-assign', createdAt: stamp, summary: `Phân công trực nhật ${dayNames[day] || day} ${shiftNames[shift] || shift}: ${chosen.length} HS`, level: 'info'
+        });
+        return { saved: true, week: targetWeek, day, shift, studentIds: chosen, scoreRevision: nextScoreRevision };
       }
       if (!['score', 'score-edit', 'duty', 'attendance'].includes(input.action)) fail();
       if (input.action === 'score' && !permissions.points) fail();

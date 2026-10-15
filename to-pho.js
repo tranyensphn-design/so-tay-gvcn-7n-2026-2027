@@ -722,10 +722,15 @@ window.openDeputyWorkspace = async function() {
                 <button type="button" class="duty-week-btn" data-action="prev-duty-day" title="Ngày trước"><i class="ph-bold ph-caret-left"></i> Ngày trước</button>
                 <button type="button" class="duty-week-btn font-black text-teal-700 bg-teal-50 border-teal-200" data-action="today-duty-day">Hôm nay</button>
                 <button type="button" class="duty-week-btn" data-action="next-duty-day" title="Ngày sau">Ngày sau <i class="ph-bold ph-caret-right"></i></button>
+                ${p.dutyManage ? `
+                  <button type="button" class="duty-week-btn font-black text-white bg-teal-600 hover:bg-teal-700 border-teal-600 shadow-sm" data-action="auto-arrange-duty" title="Tự động phân bổ đều học sinh cả lớp vào các ca trực trong tuần">
+                    <i class="ph-bold ph-arrows-clockwise"></i> Xếp lịch tự động
+                  </button>
+                ` : ''}
                 <button type="button" class="duty-week-btn" data-action="print-duty"><i class="ph-bold ph-printer"></i> In lịch trực</button>
               </div>
-              <div class="flex items-center gap-2">
-                <span class="px-3 py-1.5 rounded-xl bg-teal-50 border border-teal-200 text-teal-700 font-black text-xs flex items-center gap-1.5">
+              <div class="flex items-center gap-2 shrink-0">
+                <span class="duty-toolbar-officer-badge px-3 py-1.5 rounded-xl bg-teal-50 border border-teal-200 text-teal-700 font-black text-xs flex items-center gap-1.5 shrink-0 whitespace-nowrap">
                   <i class="ph-bold ph-shield-check"></i> Cán sự: Lớp phó lao động
                 </span>
               </div>
@@ -766,6 +771,12 @@ window.openDeputyWorkspace = async function() {
                     </div>
                   `).join('') : '<div class="col-span-2 text-xs text-white/70 text-center py-4">Chưa phân công ca này</div>'}
                 </div>
+
+                ${p.dutyManage ? `
+                  <button type="button" class="w-full mt-2.5 py-2 px-3 bg-white text-teal-800 hover:bg-teal-50 border border-white/40 rounded-xl font-black text-xs flex items-center justify-center gap-1.5 shadow-sm transition-all cursor-pointer" data-action="open-duty-editor" data-day="${dutySelectedDay}" data-shift="${dutySelectedShift}">
+                    <i class="ph-bold ph-user-plus"></i> Phân công ca này (${selectedShiftObj.short})
+                  </button>
+                ` : ''}
 
                 <div class="mt-2.5">
                   <label class="block text-[10px] font-bold text-white/80 mb-1">Nhận xét / Lý do:</label>
@@ -850,9 +861,16 @@ window.openDeputyWorkspace = async function() {
                       <div class="duty-day-shifts space-y-1.5 mt-2">
                         <!-- Ca Sáng -->
                         <section class="duty-shift-block ${isSelected && dutySelectedShift === 'morning' ? 'active' : ''}" data-shift="morning" data-action="select-day-shift" data-day="${day.key}" data-shift="morning">
-                          <div class="duty-shift-head">
-                            <div class="duty-shift-title"><i class="ph-bold ph-sun text-amber-500"></i><span>Sáng</span><b>${morningStudents.length} HS</b></div>
-                            ${renderDutyStatusBadge(morningEval)}
+                          <div class="duty-shift-head flex items-center justify-between gap-1">
+                            <div class="duty-shift-title flex items-center gap-1"><i class="ph-bold ph-sun text-amber-500"></i><span>Sáng</span><b>${morningStudents.length} HS</b></div>
+                            <div class="flex items-center gap-1">
+                              ${p.dutyManage ? `
+                                <button type="button" class="px-2 py-0.5 rounded-lg bg-teal-50 hover:bg-teal-100 text-teal-700 border border-teal-200 text-[9.5px] font-black flex items-center gap-1 transition-all cursor-pointer" data-action="open-duty-editor" data-day="${day.key}" data-shift="morning" title="Phân công học sinh ca Sáng">
+                                  <i class="ph-bold ph-pencil-simple"></i> Phân công
+                                </button>
+                              ` : ''}
+                              ${renderDutyStatusBadge(morningEval)}
+                            </div>
                           </div>
                           <div class="duty-desktop-day-actions">
                             <div class="duty-desktop-score-buttons">
@@ -875,9 +893,16 @@ window.openDeputyWorkspace = async function() {
 
                         <!-- Ca Chiều -->
                         <section class="duty-shift-block ${isSelected && dutySelectedShift === 'afternoon' ? 'active' : ''}" data-shift="afternoon" data-action="select-day-shift" data-day="${day.key}" data-shift="afternoon">
-                          <div class="duty-shift-head">
-                            <div class="duty-shift-title"><i class="ph-bold ph-cloud-sun text-blue-500"></i><span>Chiều</span><b>${afternoonStudents.length} HS</b></div>
-                            ${renderDutyStatusBadge(afternoonEval)}
+                          <div class="duty-shift-head flex items-center justify-between gap-1">
+                            <div class="duty-shift-title flex items-center gap-1"><i class="ph-bold ph-cloud-sun text-blue-500"></i><span>Chiều</span><b>${afternoonStudents.length} HS</b></div>
+                            <div class="flex items-center gap-1">
+                              ${p.dutyManage ? `
+                                <button type="button" class="px-2 py-0.5 rounded-lg bg-teal-50 hover:bg-teal-100 text-teal-700 border border-teal-200 text-[9.5px] font-black flex items-center gap-1 transition-all cursor-pointer" data-action="open-duty-editor" data-day="${day.key}" data-shift="afternoon" title="Phân công học sinh ca Chiều">
+                                  <i class="ph-bold ph-pencil-simple"></i> Phân công
+                                </button>
+                              ` : ''}
+                              ${renderDutyStatusBadge(afternoonEval)}
+                            </div>
                           </div>
                           <div class="duty-desktop-day-actions">
                             <div class="duty-desktop-score-buttons">
@@ -1741,6 +1766,296 @@ window.openDeputyWorkspace = async function() {
         });
       };
     });
+
+    root.querySelectorAll('[data-action="auto-arrange-duty"]').forEach(btn => {
+      btn.onclick = async event => {
+        event.preventDefault();
+        event.stopPropagation();
+        if (working || leaving) return;
+        if (!p.dutyManage) return message('Chỉ Lớp phó lao động mới có quyền xếp lịch tự động.', true);
+        if (!confirm(`Bạn có muốn tự động phân bổ đều học sinh cả lớp vào các ca trực trong tuần ${data.week}? Lịch trực sẽ được chia đều từ Thứ 2 đến Thứ 7.`)) return;
+        dirty = true;
+        run(async () => {
+          try {
+            await api({ action: 'duty-auto-arrange', week: data.week });
+            await load();
+            message(`Đã tự động xếp lịch trực nhật thành công cho tuần ${data.week}.`);
+          } catch (err) {
+            message(err.message || 'Không thể tự động xếp lịch.', true);
+          }
+        });
+      };
+    });
+
+    root.querySelectorAll('[data-action="open-duty-editor"]').forEach(btn => {
+      btn.onclick = event => {
+        event.preventDefault();
+        event.stopPropagation();
+        if (!p.dutyManage) return message('Chỉ Lớp phó lao động mới có quyền phân công học sinh.', true);
+        openDeputyDutyEditor(btn.dataset.day, btn.dataset.shift);
+      };
+    });
+
+    function openDeputyDutyEditor(targetDayKey, targetShiftKey) {
+      const dayKey = targetDayKey || dutySelectedDay || 'mon';
+      const shiftKey = targetShiftKey || dutySelectedShift || 'morning';
+      const dayObj = DUTY_DAYS_LIST.find(d => d.key === dayKey) || DUTY_DAYS_LIST[0];
+      const shiftObj = DUTY_SHIFTS_LIST.find(s => s.key === shiftKey) || DUTY_SHIFTS_LIST[0];
+
+      let modalContainer = document.getElementById('modal-container');
+      if (!modalContainer) {
+        modalContainer = document.createElement('div');
+        modalContainer.id = 'modal-container';
+        document.body.appendChild(modalContainer);
+      }
+
+      const weekDuties = (data.duties || []).filter(d => d.week === data.week);
+      const otherShiftAssignments = {};
+      for (const d of weekDuties) {
+        if (d.day === dayKey && d.shift === shiftKey) continue;
+        const dO = DUTY_DAYS_LIST.find(x => x.key === d.day);
+        const sO = DUTY_SHIFTS_LIST.find(x => x.key === d.shift);
+        otherShiftAssignments[String(d.studentId)] = `${dO?.label || d.day} (${sO?.short || d.shift})`;
+      }
+
+      const initialChosen = weekDuties
+        .filter(d => d.day === dayKey && d.shift === shiftKey)
+        .map(d => String(d.studentId));
+      const chosenIds = new Set(initialChosen);
+
+      let searchQuery = '';
+      let groupFilter = 'all';
+
+      function renderModal() {
+        const allStudents = data.students || [];
+        const groups = [...new Set(allStudents.map(s => s.group).filter(Boolean))].sort();
+
+        const visibleStudents = allStudents.filter(s => {
+          const matchSearch = !searchQuery || s.name.toLowerCase().includes(searchQuery.toLowerCase());
+          const matchGroup = groupFilter === 'all'
+            ? true
+            : groupFilter === 'unassigned'
+              ? (!chosenIds.has(String(s.id)) && !otherShiftAssignments[String(s.id)])
+              : s.group === groupFilter;
+          return matchSearch && matchGroup;
+        });
+
+        const chosenList = allStudents.filter(s => chosenIds.has(String(s.id)));
+
+        modalContainer.innerHTML = `
+          <div class="duty-modal-backdrop" id="duty-assign-backdrop">
+            <div class="duty-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="duty-modal-title">
+              <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between gap-3 bg-gradient-to-r from-teal-50 to-emerald-50">
+                <div class="flex items-center gap-3">
+                  <div class="w-10 h-10 rounded-xl bg-teal-600 text-white flex items-center justify-center text-lg font-black shrink-0 shadow-md">
+                    <i class="ph-bold ${shiftObj.icon}"></i>
+                  </div>
+                  <div>
+                    <h3 id="duty-modal-title" class="text-base font-black text-slate-800 leading-snug">
+                      Phân công: ${dayObj.label} • Ca ${shiftObj.short}
+                    </h3>
+                    <p class="text-xs text-slate-500 font-semibold">
+                      Tuần ${esc(data.week)} • ${allStudents.length} học sinh cả lớp
+                    </p>
+                  </div>
+                </div>
+                <button type="button" id="duty-modal-close" class="w-8 h-8 rounded-lg bg-white/80 hover:bg-white text-slate-500 hover:text-slate-800 flex items-center justify-center border border-slate-200 transition-all cursor-pointer">
+                  <i class="ph-bold ph-x text-base"></i>
+                </button>
+              </div>
+
+              <div class="p-4 bg-slate-50/70 border-b border-slate-100">
+                <div class="flex items-center justify-between gap-2 mb-2">
+                  <div class="text-xs font-black text-slate-700 flex items-center gap-1.5">
+                    <span>Học sinh được phân công ca này</span>
+                    <span class="px-2 py-0.5 rounded-full bg-teal-100 text-teal-800 font-extrabold text-[11px]">${chosenIds.size}</span>
+                  </div>
+                  ${chosenIds.size > 0 ? `
+                    <button type="button" id="duty-clear-chosen" class="text-[11px] font-bold text-rose-600 hover:text-rose-800 underline cursor-pointer">
+                      Xóa tất cả (${chosenIds.size})
+                    </button>
+                  ` : ''}
+                </div>
+
+                <div class="flex flex-wrap gap-1.5 min-h-[38px] max-h-[100px] overflow-y-auto p-1.5 bg-white rounded-xl border border-slate-200/80">
+                  ${chosenList.length ? chosenList.map(s => `
+                    <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-teal-50 text-teal-800 border border-teal-200 text-xs font-bold shadow-xs">
+                      <span>${esc(s.name)}</span>
+                      <button type="button" class="duty-remove-student text-teal-600 hover:text-rose-600 cursor-pointer" data-id="${esc(s.id)}" title="Bỏ chọn">
+                        <i class="ph-bold ph-x text-[10px]"></i>
+                      </button>
+                    </span>
+                  `).join('') : '<span class="text-xs text-slate-400 italic py-1 px-2">Chưa chọn học sinh nào cho ca này</span>'}
+                </div>
+              </div>
+
+              <div class="p-3 border-b border-slate-100 space-y-2">
+                <div class="relative">
+                  <i class="ph-bold ph-magnifying-glass absolute left-3 top-2.5 text-slate-400 text-sm"></i>
+                  <input type="text" id="duty-student-search" value="${esc(searchQuery)}" placeholder="Tìm theo tên học sinh..." class="w-full pl-9 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold outline-none focus:border-teal-500 focus:bg-white transition-all">
+                </div>
+
+                <div class="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs font-bold">
+                  <button type="button" class="duty-group-filter px-2.5 py-1 rounded-lg transition-all cursor-pointer ${groupFilter === 'all' ? 'bg-teal-600 text-white font-black' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}" data-group="all">Tất cả</button>
+                  <button type="button" class="duty-group-filter px-2.5 py-1 rounded-lg transition-all cursor-pointer ${groupFilter === 'unassigned' ? 'bg-teal-600 text-white font-black' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}" data-group="unassigned">Chưa trực</button>
+                  ${groups.map(g => `
+                    <button type="button" class="duty-group-filter px-2.5 py-1 rounded-lg transition-all cursor-pointer ${groupFilter === g ? 'bg-teal-600 text-white font-black' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}" data-group="${esc(g)}">${esc(g)}</button>
+                  `).join('')}
+                </div>
+              </div>
+
+              <div class="p-3 overflow-y-auto max-h-[300px] flex-1 divide-y divide-slate-100">
+                ${visibleStudents.length ? visibleStudents.map(s => {
+                  const sid = String(s.id);
+                  const isSelected = chosenIds.has(sid);
+                  const conflictShift = otherShiftAssignments[sid];
+                  const isConflict = Boolean(conflictShift);
+
+                  return `
+                    <div class="py-2 px-2.5 rounded-xl flex items-center justify-between gap-3 transition-colors ${isSelected ? 'bg-teal-50/80' : isConflict ? 'opacity-60 bg-slate-50/50' : 'hover:bg-slate-50'}">
+                      <div class="flex items-center gap-2.5 min-w-0 flex-1">
+                        <div class="w-8 h-8 rounded-full flex items-center justify-center text-xs font-black shrink-0 ${isSelected ? 'bg-teal-600 text-white' : 'bg-slate-200 text-slate-700'}">
+                          ${esc((s.name || '').slice(-2))}
+                        </div>
+                        <div class="min-w-0 flex-1">
+                          <div class="text-xs font-black text-slate-800 truncate">${esc(s.name)}</div>
+                          <div class="text-[10px] text-slate-500 font-bold flex items-center gap-2">
+                            <span>${esc(s.group || 'Học sinh')}</span>
+                            ${isConflict ? `<span class="text-amber-700 bg-amber-100 px-1.5 py-0.5 rounded font-extrabold text-[9px]"><i class="ph-bold ph-warning"></i> Đã trực ${conflictShift}</span>` : ''}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div>
+                        ${isSelected ? `
+                          <button type="button" class="duty-toggle-student px-3 py-1 rounded-lg bg-teal-600 text-white text-xs font-black hover:bg-rose-600 transition-colors cursor-pointer" data-id="${esc(s.id)}">
+                            <span>Đã chọn</span>
+                          </button>
+                        ` : isConflict ? `
+                          <button type="button" class="px-2.5 py-1 rounded-lg bg-slate-200 text-slate-400 text-xs font-bold cursor-not-allowed" disabled title="Học sinh đã có lịch trực khác trong tuần">
+                            Đã có ca
+                          </button>
+                        ` : `
+                          <button type="button" class="duty-toggle-student px-3 py-1 rounded-lg bg-white border border-teal-300 text-teal-700 hover:bg-teal-50 text-xs font-black transition-colors cursor-pointer" data-id="${esc(s.id)}">
+                            + Chọn
+                          </button>
+                        `}
+                      </div>
+                    </div>
+                  `;
+                }).join('') : '<div class="text-center py-8 text-xs text-slate-400 font-bold">Không tìm thấy học sinh phù hợp</div>'}
+              </div>
+
+              <div class="px-5 py-3.5 border-t border-slate-100 bg-slate-50 flex items-center justify-between gap-3">
+                <span class="text-[11px] text-slate-500 font-bold">
+                  Quy tắc: 1 học sinh chỉ trực 1 ca/tuần.
+                </span>
+                <div class="flex items-center gap-2">
+                  <button type="button" id="duty-modal-cancel" class="px-4 py-2 rounded-xl bg-white border border-slate-300 text-slate-600 hover:bg-slate-100 text-xs font-bold transition-all cursor-pointer">
+                    Đóng
+                  </button>
+                  <button type="button" id="duty-modal-save" class="px-5 py-2 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-xs font-black shadow-md hover:shadow-lg transition-all cursor-pointer flex items-center gap-1.5">
+                    <i class="ph-bold ph-check"></i> Lưu phân công (${chosenIds.size})
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        `;
+
+        const backdrop = modalContainer.querySelector('#duty-assign-backdrop');
+        const closeBtn = modalContainer.querySelector('#duty-modal-close');
+        const cancelBtn = modalContainer.querySelector('#duty-modal-cancel');
+        const saveBtn = modalContainer.querySelector('#duty-modal-save');
+        const searchInput = modalContainer.querySelector('#duty-student-search');
+
+        const closeModal = () => {
+          modalContainer.innerHTML = '';
+        };
+
+        backdrop.onclick = e => {
+          if (e.target === backdrop) closeModal();
+        };
+        closeBtn.onclick = closeModal;
+        cancelBtn.onclick = closeModal;
+
+        modalContainer.querySelectorAll('.duty-remove-student').forEach(btn => {
+          btn.onclick = () => {
+            chosenIds.delete(btn.dataset.id);
+            renderModal();
+          };
+        });
+
+        const clearBtn = modalContainer.querySelector('#duty-clear-chosen');
+        if (clearBtn) {
+          clearBtn.onclick = () => {
+            chosenIds.clear();
+            renderModal();
+          };
+        }
+
+        modalContainer.querySelectorAll('.duty-group-filter').forEach(btn => {
+          btn.onclick = () => {
+            groupFilter = btn.dataset.group;
+            renderModal();
+          };
+        });
+
+        modalContainer.querySelectorAll('.duty-toggle-student').forEach(btn => {
+          btn.onclick = () => {
+            const id = btn.dataset.id;
+            if (chosenIds.has(id)) {
+              chosenIds.delete(id);
+            } else {
+              if (otherShiftAssignments[id]) {
+                return message(`Học sinh này đã được xếp lịch ở ${otherShiftAssignments[id]}. Vui lòng bỏ ca kia trước nếu muốn đổi.`, true);
+              }
+              chosenIds.add(id);
+            }
+            renderModal();
+          };
+        });
+
+        if (searchInput) {
+          searchInput.oninput = e => {
+            searchQuery = e.target.value;
+            renderModal();
+            const nextInput = modalContainer.querySelector('#duty-student-search');
+            if (nextInput) {
+              nextInput.focus();
+              nextInput.selectionStart = nextInput.selectionEnd = nextInput.value.length;
+            }
+          };
+        }
+
+        saveBtn.onclick = async () => {
+          if (working || leaving) return;
+          saveBtn.disabled = true;
+          saveBtn.innerHTML = '<i class="ph-bold ph-spinner ph-spin"></i> Đang lưu...';
+          dirty = true;
+          run(async () => {
+            try {
+              await api({
+                action: 'duty-assign',
+                week: data.week,
+                day: dayKey,
+                shift: shiftKey,
+                studentIds: Array.from(chosenIds)
+              });
+              closeModal();
+              await load();
+              message(`Đã lưu phân công ${chosenIds.size} học sinh cho ${dayObj.label} • Ca ${shiftObj.short}.`);
+            } catch (err) {
+              saveBtn.disabled = false;
+              saveBtn.innerHTML = `<i class="ph-bold ph-check"></i> Lưu phân công (${chosenIds.size})`;
+              message(err.message || 'Không thể lưu phân công.', true);
+            }
+          });
+        };
+      }
+
+      renderModal();
+    }
 
     root.querySelectorAll('.duty-form').forEach(form => form.onsubmit = event => {
       event.preventDefault();
